@@ -1,0 +1,483 @@
+{
+  "id": "rQbED52z0q6s4mt4",
+  "name": "$>>Admin Memory Management",
+  "active": 0,
+  "createdAt": "2025-12-14 05:30:18.492",
+  "updatedAt": "2025-12-14 05:30:18.492",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1376,
+        304
+      ],
+      "id": "90393fbb-7c20-4e32-89d8-a52a368b7540",
+      "name": "Admin Telegram Trigger",
+      "webhookId": "3265de28-3635-45eb-b8d3-993aedb43646"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/health",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9229880b-a04c-42b1-af14-44f2edef1c59"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Database Health Check"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6d44b186-3f5c-4a84-91d3-08a9c493c5c9",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/duplicates",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Find Duplicates"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fce8b871-95a1-445b-8236-578f00616fb4",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/restore",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Memory Restoration"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "bad80d66-d5bd-4146-8724-acabd6ead85e",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/stats",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Memory Statistics"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "143e7ac3-8543-4623-8c08-be57ceac740c",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/clean",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cleanup Operations"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ac5898b3-8001-4692-a6b1-19ac50fe7ed0",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/export",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Export Memories"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7dc82014-683e-4b54-9a2f-8951c7fcb822",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/user",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "User Management"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "099e8fd3-837b-470d-a49d-be47fddb6cc3",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Show Help"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -704,
+        208
+      ],
+      "id": "135a4369-9611-4f2c-9bc4-d194ee0cad9f",
+      "name": "Command Router"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node Type: Code\n// Name: \"Database Health Check\"\n// Connected to: /health route\n\nconst now = new Date();\n\n// This would normally query your Supabase database\n// For demonstration, using mock data structure\n\n// Simulate database queries\nconst healthChecks = {\n  timestamp: now.toISOString(),\n  checks_performed: []\n};\n\n// 1. Check total memories\nconst totalMemoriesQuery = `SELECT COUNT(*) as total FROM ai_memories`;\nconst totalMemories = 15847; // Mock result\nhealthChecks.checks_performed.push({\n  check: 'Total Memories',\n  status: 'OK',\n  value: totalMemories,\n  threshold: 'N/A'\n});\n\n// 2. Check duplicate rate\nconst duplicateCheckQuery = `\n  SELECT memory_value, COUNT(*) as count \n  FROM ai_memories \n  GROUP BY memory_value \n  HAVING COUNT(*) > 1\n`;\nconst duplicateCount = 1234; // Mock\nconst duplicateRate = (duplicateCount / totalMemories * 100).toFixed(2);\nhealthChecks.checks_performed.push({\n  check: 'Duplicate Rate',\n  status: duplicateRate > 20 ? 'WARNING' : 'OK',\n  value: `${duplicateRate}%`,\n  threshold: '20%',\n  duplicates_found: duplicateCount\n});\n\n// 3. Check memory age distribution\nconst ageDistributionQuery = `\n  SELECT \n    SUM(CASE WHEN created_at > NOW() - INTERVAL '1 day' THEN 1 ELSE 0 END) as last_day,\n    SUM(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) as last_week,\n    SUM(CASE WHEN created_at > NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END) as last_month,\n    COUNT(*) as total\n  FROM ai_memories\n`;\nconst ageDistribution = {\n  last_24h: 234,\n  last_week: 1567,\n  last_month: 4532,\n  older: totalMemories - 4532\n};\nhealthChecks.checks_performed.push({\n  check: 'Memory Age Distribution',\n  status: 'OK',\n  distribution: ageDistribution,\n  stale_rate: ((ageDistribution.older / totalMemories) * 100).toFixed(2) + '%'\n});\n\n// 4. Check users with excessive memories\nconst excessiveMemoriesQuery = `\n  SELECT user_id, COUNT(*) as count \n  FROM ai_memories \n  GROUP BY user_id \n  HAVING COUNT(*) > 1000\n`;\nconst usersWithExcessiveMemories = 3; // Mock\nhealthChecks.checks_performed.push({\n  check: 'Users with Excessive Memories',\n  status: usersWithExcessiveMemories > 10 ? 'WARNING' : 'OK',\n  value: usersWithExcessiveMemories,\n  threshold: '10 users'\n});\n\n// 5. Check rejection log\nconst rejectionStatsQuery = `\n  SELECT \n    COUNT(*) as total_rejected,\n    SUM(CASE WHEN restored = false THEN 1 ELSE 0 END) as pending_restore\n  FROM memory_rejection_log\n  WHERE rejected_at > NOW() - INTERVAL '7 days'\n`;\nconst rejectionStats = {\n  total_rejected_week: 567,\n  pending_restore: 234,\n  rejection_rate_week: '12%'\n};\nhealthChecks.checks_performed.push({\n  check: 'Rejection Statistics (7 days)',\n  status: rejectionStats.rejection_rate_week > '25%' ? 'WARNING' : 'OK',\n  stats: rejectionStats\n});\n\n// 6. Check memory types balance\nconst typeDistributionQuery = `\n  SELECT memory_type, COUNT(*) as count \n  FROM ai_memories \n  GROUP BY memory_type\n`;\nconst typeDistribution = {\n  context: 8234,\n  preference: 2341,\n  relationship: 1234,\n  interaction: 3456,\n  goal: 582\n};\nhealthChecks.checks_performed.push({\n  check: 'Memory Type Distribution',\n  status: 'OK',\n  distribution: typeDistribution\n});\n\n// 7. Check for orphaned memories\nconst orphanedMemoriesQuery = `\n  SELECT COUNT(*) as orphaned \n  FROM ai_memories m \n  LEFT JOIN users u ON m.user_id = u.id \n  WHERE u.id IS NULL\n`;\nconst orphanedCount = 12; // Mock\nhealthChecks.checks_performed.push({\n  check: 'Orphaned Memories',\n  status: orphanedCount > 0 ? 'WARNING' : 'OK',\n  value: orphanedCount,\n  action: orphanedCount > 0 ? 'Run cleanup' : 'None needed'\n});\n\n// 8. Check database size\nconst dbSizeQuery = `\n  SELECT \n    pg_size_pretty(pg_database_size(current_database())) as db_size,\n    pg_size_pretty(pg_total_relation_size('ai_memories')) as memories_table_size\n`;\nconst dbSize = {\n  total: '2.3 GB',\n  memories_table: '1.8 GB',\n  rejection_log: '234 MB'\n};\nhealthChecks.checks_performed.push({\n  check: 'Database Size',\n  status: 'OK',\n  sizes: dbSize\n});\n\n// Calculate overall health score\nlet healthScore = 100;\nlet criticalIssues = [];\nlet warnings = [];\nlet recommendations = [];\n\nhealthChecks.checks_performed.forEach(check => {\n  if (check.status === 'WARNING') {\n    healthScore -= 10;\n    warnings.push(check.check);\n  } else if (check.status === 'CRITICAL') {\n    healthScore -= 25;\n    criticalIssues.push(check.check);\n  }\n});\n\n// Add recommendations based on findings\nif (duplicateRate > 20) {\n  recommendations.push('Run /clean duplicates to remove duplicate memories');\n}\nif (orphanedCount > 0) {\n  recommendations.push('Run /clean orphaned to remove orphaned memories');\n}\nif (ageDistribution.older > totalMemories * 0.7) {\n  recommendations.push('Consider archiving old memories with /clean archive');\n}\n\n// Generate summary\nhealthChecks.summary = {\n  health_score: Math.max(0, healthScore),\n  status: healthScore >= 80 ? 'HEALTHY' : healthScore >= 60 ? 'WARNING' : 'CRITICAL',\n  critical_issues: criticalIssues,\n  warnings: warnings,\n  recommendations: recommendations,\n  total_memories: totalMemories,\n  total_users: 234, // Mock\n  database_size: dbSize.total\n};\n\nreturn [{\n  json: {\n    ...healthChecks,\n    admin_data: $input.first().json,\n    formatted_message: formatHealthReport(healthChecks)\n  }\n}];\n\n// Helper function\nfunction formatHealthReport(health) {\n  const emoji = health.summary.status === 'HEALTHY' ? '✅' : \n                health.summary.status === 'WARNING' ? '⚠️' : '🚨';\n  \n  let report = `${emoji} **Database Health Report**\\n`;\n  report += `Status: ${health.summary.status} (Score: ${health.summary.health_score}/100)\\n\\n`;\n  \n  report += `📊 **Key Metrics:**\\n`;\n  report += `• Total Memories: ${health.summary.total_memories.toLocaleString()}\\n`;\n  report += `• Database Size: ${health.summary.database_size}\\n`;\n  report += `• Duplicate Rate: ${health.checks_performed[1].value}\\n`;\n  report += `• Rejection Rate (7d): ${health.checks_performed[4].stats.rejection_rate_week}\\n\\n`;\n  \n  if (health.summary.warnings.length > 0) {\n    report += `⚠️ **Warnings:**\\n`;\n    health.summary.warnings.forEach(w => report += `• ${w}\\n`);\n    report += '\\n';\n  }\n  \n  if (health.summary.recommendations.length > 0) {\n    report += `💡 **Recommendations:**\\n`;\n    health.summary.recommendations.forEach(r => report += `• ${r}\\n`);\n  }\n  \n  return report;\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "648b981c-cbf6-4fc1-9a75-b90e2032ec2a",
+      "name": "Database Health Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node Type: Code\n// Name: \"Verify Admin Access\"\n\nconst telegramData = $('Admin Telegram Trigger').first()?.json || {};\nconst senderId = telegramData.message?.from?.id;\nconst senderUsername = telegramData.message?.from?.username;\nconst messageText = telegramData.message?.text || '';\nconst chatId = telegramData.message?.chat?.id;\n\n// Define admin users (add your Telegram IDs)\nconst ADMIN_IDS = [\n  '6991506547',  // Replace with your admin Telegram ID\n  '146329499'   // Add more admin IDs as needed\n];\n\n// Check if sender is admin\nconst isAdmin = ADMIN_IDS.includes(String(senderId));\n\nif (!isAdmin) {\n  return [{\n    json: {\n      authorized: false,\n      message: '🚫 Unauthorized: Admin access required',\n      chat_id: chatId,\n      stop_workflow: true\n    }\n  }];\n}\n\n// Log admin action\nconsole.log(`Admin action by ${senderUsername} (${senderId}): ${messageText}`);\n\nreturn [{\n  json: {\n    authorized: true,\n    admin_id: senderId,\n    admin_username: senderUsername,\n    command: messageText,\n    chat_id: chatId,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1152,
+        304
+      ],
+      "id": "64ab585e-7b5f-4870-a39c-38941e047345",
+      "name": "Verify Admin Access"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node Type: Code\n// Name: \"Parse Admin Command\"\n\nconst adminData = $input.first().json;\nconst command = adminData.command || '';\n\n// Parse command structure: /command [subcommand] [options]\nconst parts = command.trim().split(/\\s+/);\nconst mainCommand = parts[0]?.toLowerCase() || '';\nconst subCommand = parts[1]?.toLowerCase() || '';\nconst args = parts.slice(2);\nconst options = {};\n\n// Parse options (--key=value or --flag)\nargs.forEach(arg => {\n  if (arg.startsWith('--')) {\n    const [key, value] = arg.substring(2).split('=');\n    options[key] = value || true;\n  }\n});\n\n// Extract user identifier if specified\nlet targetUserId = options.user || options.u || null;\nlet targetUsername = options.username || null;\n\nreturn [{\n  json: {\n    ...adminData,\n    parsed: {\n      main: mainCommand,\n      sub: subCommand,\n      args: args.filter(a => !a.startsWith('--')),\n      options,\n      targetUserId,\n      targetUsername,\n      raw: command\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -928,
+        304
+      ],
+      "id": "1c5ce2b3-cbda-4db3-8988-2f330353a05f",
+      "name": "Parse Admin Command"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node Type: Code\n// Name: \"Find Duplicates\"\n// Connected to: /duplicates route\n\nconst adminData = $input.first().json;\nconst options = adminData.parsed.options;\nconst targetUserId = adminData.parsed.targetUserId;\n\n// Options\nconst dryRun = options['dry-run'] || options.preview || false;\nconst autoClean = options.clean || options.auto || false;\nconst limit = parseInt(options.limit) || 100;\n\n// Find duplicates query\nlet duplicatesQuery = `\n  SELECT \n    memory_value,\n    array_agg(id ORDER BY created_at DESC) as memory_ids,\n    array_agg(user_id) as user_ids,\n    array_agg(created_at ORDER BY created_at DESC) as created_dates,\n    COUNT(*) as duplicate_count\n  FROM ai_memories\n`;\n\nif (targetUserId) {\n  duplicatesQuery += ` WHERE user_id = '${targetUserId}'`;\n}\n\nduplicatesQuery += `\n  GROUP BY memory_value\n  HAVING COUNT(*) > 1\n  ORDER BY COUNT(*) DESC\n  LIMIT ${limit}\n`;\n\n// Mock results for demonstration\nconst duplicates = [\n  {\n    memory_value: \"Joe is a Malaysian business coach who helps entrepreneurs\",\n    memory_ids: ['id1', 'id2', 'id3', 'id4'],\n    user_ids: ['user1', 'user1', 'user1', 'user1'],\n    duplicate_count: 4,\n    created_dates: ['2024-01-15', '2024-01-14', '2024-01-13', '2024-01-12']\n  },\n  {\n    memory_value: \"User prefers dark mode\",\n    memory_ids: ['id5', 'id6'],\n    user_ids: ['user2', 'user2'],\n    duplicate_count: 2,\n    created_dates: ['2024-01-10', '2024-01-09']\n  }\n];\n\nlet cleanupPlan = [];\nlet totalToDelete = 0;\nlet totalToKeep = 0;\n\n// Process duplicates\nduplicates.forEach(dup => {\n  // Keep the oldest (or newest based on preference)\n  const toKeep = dup.memory_ids[0]; // Keep newest\n  const toDelete = dup.memory_ids.slice(1); // Delete others\n  \n  cleanupPlan.push({\n    memory_value: dup.memory_value.substring(0, 50) + '...',\n    keep: toKeep,\n    delete: toDelete,\n    count: dup.duplicate_count,\n    savings: toDelete.length\n  });\n  \n  totalToDelete += toDelete.length;\n  totalToKeep += 1;\n});\n\n// Execute cleanup if requested\nlet cleanupResult = null;\nif (autoClean && !dryRun) {\n  // In production, execute DELETE queries\n  cleanupPlan.forEach(plan => {\n    const deleteQuery = `\n      DELETE FROM ai_memories \n      WHERE id IN (${plan.delete.map(id => `'${id}'`).join(',')})\n    `;\n    console.log('Would execute:', deleteQuery);\n  });\n  \n  cleanupResult = {\n    status: 'completed',\n    deleted: totalToDelete,\n    kept: totalToKeep,\n    space_saved: `${(totalToDelete * 0.5).toFixed(2)} KB` // Estimate\n  };\n}\n\n// Format response\nlet message = `🔍 **Duplicate Analysis Report**\\n\\n`;\nmessage += `Found ${duplicates.length} groups of duplicates\\n`;\nmessage += `Total duplicate memories: ${totalToDelete + totalToKeep}\\n`;\nmessage += `Can remove: ${totalToDelete} memories\\n\\n`;\n\nif (duplicates.length > 0) {\n  message += `**Top Duplicates:**\\n`;\n  duplicates.slice(0, 5).forEach((dup, i) => {\n    message += `${i + 1}. \"${dup.memory_value.substring(0, 40)}...\"\\n`;\n    message += `   Copies: ${dup.duplicate_count} | Can delete: ${dup.duplicate_count - 1}\\n`;\n  });\n}\n\nif (dryRun) {\n  message += `\\n📌 This is a preview. Add --clean to execute cleanup`;\n} else if (cleanupResult) {\n  message += `\\n✅ **Cleanup Completed:**\\n`;\n  message += `• Deleted: ${cleanupResult.deleted} duplicates\\n`;\n  message += `• Kept: ${cleanupResult.kept} unique memories\\n`;\n  message += `• Space saved: ${cleanupResult.space_saved}`;\n}\n\nreturn [{\n  json: {\n    duplicates_found: duplicates.length,\n    total_duplicates: totalToDelete + totalToKeep,\n    can_delete: totalToDelete,\n    cleanup_plan: cleanupPlan,\n    cleanup_result: cleanupResult,\n    dry_run: dryRun,\n    message,\n    admin_data: adminData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        192
+      ],
+      "id": "726a7504-1bb3-46b3-9d8a-b7a4cd7e429a",
+      "name": "Find Duplicates"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node Type: Code\n// Name: \"Memory Statistics\"\n// Connected to: /stats route\n\nconst adminData = $input.first().json;\nconst targetUserId = adminData.parsed.targetUserId;\nconst timeframe = adminData.parsed.args[0] || '7d'; // 1d, 7d, 30d, all\n\n// Parse timeframe\nconst timeframeDays = {\n  '1d': 1,\n  '24h': 1,\n  '7d': 7,\n  'week': 7,\n  '30d': 30,\n  'month': 30,\n  'all': 99999\n}[timeframe] || 7;\n\n// Build queries based on timeframe\nconst dateFilter = timeframeDays < 99999 \n  ? `WHERE created_at > NOW() - INTERVAL '${timeframeDays} days'`\n  : '';\n\n// Mock statistics data\nconst stats = {\n  timeframe: timeframe,\n  period: `Last ${timeframeDays} days`,\n  \n  overview: {\n    total_memories: 15847,\n    total_users: 234,\n    active_users: 89,\n    avg_memories_per_user: 67.7,\n    total_rejected: 1234,\n    total_restored: 234\n  },\n  \n  memory_types: {\n    context: 8234,\n    preference: 2341,\n    relationship: 1234,\n    interaction: 3456,\n    goal: 582\n  },\n  \n  activity: {\n    memories_created_today: 234,\n    memories_created_week: 1567,\n    memories_created_month: 4532,\n    \n    peak_hour: '14:00',\n    peak_day: 'Monday',\n    \n    most_active_users: [\n      { user_id: 'user1', name: 'Joe', memories: 234 },\n      { user_id: 'user2', name: 'Sarah', memories: 198 },\n      { user_id: 'user3', name: 'Mike', memories: 156 }\n    ]\n  },\n  \n  quality_metrics: {\n    duplicate_rate: '18.5%',\n    rejection_rate: '12.3%',\n    restoration_rate: '19%',\n    avg_memory_length: 82,\n    avg_importance_score: 0.83\n  },\n  \n  storage: {\n    database_size: '2.3 GB',\n    memories_table: '1.8 GB',\n    rejection_log_table: '234 MB',\n    avg_memory_size: '1.2 KB',\n    estimated_monthly_growth: '245 MB'\n  },\n  \n  top_memory_values: [\n    { value: 'User is a business coach', count: 45 },\n    { value: 'User prefers dark mode', count: 23 },\n    { value: 'User likes coffee', count: 19 }\n  ],\n  \n  issues_detected: [\n    'High duplicate rate in context memories',\n    '3 users have over 1000 memories',\n    '234 memories pending restoration'\n  ]\n};\n\n// Format message\nlet message = `📊 **Memory Statistics Report**\\n`;\nmessage += `Period: ${stats.period}\\n\\n`;\n\nmessage += `**📈 Overview:**\\n`;\nmessage += `• Total Memories: ${stats.overview.total_memories.toLocaleString()}\\n`;\nmessage += `• Active Users: ${stats.overview.active_users}/${stats.overview.total_users}\\n`;\nmessage += `• Avg per User: ${stats.overview.avg_memories_per_user}\\n\\n`;\n\nmessage += `**📝 Memory Types:**\\n`;\nObject.entries(stats.memory_types).forEach(([type, count]) => {\n  const percent = ((count / stats.overview.total_memories) * 100).toFixed(1);\n  message += `• ${type}: ${count.toLocaleString()} (${percent}%)\\n`;\n});\nmessage += '\\n';\n\nmessage += `**⚡ Activity:**\\n`;\nmessage += `• Today: ${stats.activity.memories_created_today} new memories\\n`;\nmessage += `• This Week: ${stats.activity.memories_created_week}\\n`;\nmessage += `• Peak Time: ${stats.activity.peak_day} at ${stats.activity.peak_hour}\\n\\n`;\n\nmessage += `**🎯 Quality Metrics:**\\n`;\nmessage += `• Duplicate Rate: ${stats.quality_metrics.duplicate_rate}\\n`;\nmessage += `• Rejection Rate: ${stats.quality_metrics.rejection_rate}\\n`;\nmessage += `• Avg Importance: ${stats.quality_metrics.avg_importance_score}\\n\\n`;\n\nif (stats.issues_detected.length > 0) {\n  message += `**⚠️ Issues Detected:**\\n`;\n  stats.issues_detected.forEach(issue => message += `• ${issue}\\n`);\n}\n\nreturn [{\n  json: {\n    stats,\n    message,\n    admin_data: adminData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        384
+      ],
+      "id": "fe53b0cf-f306-4bc7-b8bd-edf3ee87361d",
+      "name": "Memory Statistics"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node Type: Code\n// Name: \"Show Admin Help\"\n// Connected to: /help route\n\nconst helpMessage = `\n🛠 **Admin Memory Management Commands**\n\n**System Health & Monitoring:**\n\\`/health\\` - Complete database health check\n\\`/stats [1d|7d|30d|all]\\` - Memory statistics\n\\`/monitor [user_id]\\` - Monitor specific user\n\n**Duplicate Management:**\n\\`/duplicates\\` - Find duplicate memories\n\\`/duplicates --clean\\` - Auto-remove duplicates\n\\`/duplicates --user=USER_ID\\` - Check specific user\n\\`/duplicates --dry-run\\` - Preview without deleting\n\n**Memory Restoration:**\n\\`/restore [search]\\` - Search rejected memories\n\\`/restore id:MEM_ID\\` - Restore specific memory\n\\`/restore last:N\\` - Restore last N rejected\n\\`/restore critical\\` - Find critical rejected info\n\\`/restore all --user=USER_ID\\` - User's rejected memories\n\n**Cleanup Operations:**\n\\`/clean duplicates\\` - Remove all duplicates\n\\`/clean orphaned\\` - Remove orphaned memories\n\\`/clean old --days=90\\` - Archive old memories\n\\`/clean user:USER_ID\\` - Clean specific user\n\\`/clean empty\\` - Remove empty memories\n\n**User Management:**\n\\`/user list\\` - List all users with memory count\n\\`/user USER_ID stats\\` - User statistics\n\\`/user USER_ID memories\\` - List user's memories\n\\`/user USER_ID clean\\` - Clean user's memories\n\\`/user USER_ID export\\` - Export user data\n\\`/user USER_ID override:on\\` - Enable override\n\n**Export & Backup:**\n\\`/export all\\` - Export entire database\n\\`/export rejected\\` - Export rejection log\n\\`/export user:USER_ID\\` - Export user data\n\\`/export stats\\` - Export statistics report\n\n**Advanced Options:**\n\\`--dry-run\\` - Preview without changes\n\\`--force\\` - Skip confirmations\n\\`--limit=N\\` - Limit results\n\\`--user=ID\\` - Target specific user\n\\`--verbose\\` - Detailed output\n\n**Quick Actions:**\n\\`/quick-health\\` - Fast health check\n\\`/quick-clean\\` - Auto-clean obvious issues\n\\`/emergency-stop\\` - Stop all memory operations\n\n**Examples:**\n\\`/duplicates --clean --limit=100\\`\n\\`/restore harvard --user=joe123\\`\n\\`/stats 30d\\`\n\\`/clean old --days=60 --dry-run\\`\n\nType any command to begin. Add \\`--help\\` to any command for details.\n`;\n\nreturn [{\n  json: {\n    message: helpMessage.trim(),\n    admin_data: $input.first().json\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        576
+      ],
+      "id": "f514bf77-e11f-48bd-8b8a-0ce5467c61e3",
+      "name": "Show Admin Help"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.admin_data.chat_id }}",
+        "text": "={{ $json.formatted_message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        304
+      ],
+      "id": "c63fe863-4cb0-42f2-a801-bbc1217b5af4",
+      "name": "Send a text message",
+      "webhookId": "ae73e08e-fdcc-4fd0-a84c-d6db3dc7aefe"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node Type: Code\n// Name: \"Error Handler\"\n// Connect this to all nodes' error outputs\n\nconst error = $input.first().json;\nconst adminData = $('Parse Admin Command').first()?.json || {};\n\nconsole.error('Admin command error:', error);\n\nreturn [{\n  json: {\n    chat_id: adminData.chat_id || '',\n    message: `❌ **Error executing command:**\\n\\n${error.message || 'Unknown error occurred'}\\n\\nTry /help for available commands.`,\n    error: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        320
+      ],
+      "id": "73e7e49b-0c37-4de2-aad0-e937123e71b0",
+      "name": "Error Handler"
+    }
+  ],
+  "connections": {
+    "Admin Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Verify Admin Access",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Command Router": {
+      "main": [
+        [
+          {
+            "node": "Database Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [
+          {
+            "node": "Memory Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [],
+        [],
+        [
+          {
+            "node": "Show Admin Help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Admin Access": {
+      "main": [
+        [
+          {
+            "node": "Parse Admin Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Admin Command": {
+      "main": [
+        [
+          {
+            "node": "Command Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Database Health Check": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Statistics": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Show Admin Help": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": null
+}

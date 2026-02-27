@@ -1,0 +1,613 @@
+{
+  "id": "PdYrZTSFM82IbqlX",
+  "name": "ARA | Check-in | Segment C | v2.0",
+  "active": 1,
+  "createdAt": "2025-12-14 05:29:10.908",
+  "updatedAt": "2026-01-26 09:09:35.374",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d2f817e3-a74e-467f-bcf4-3ad961cda816",
+              "leftValue": "={{ $json.eligible_for_segment_c }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -448,
+        208
+      ],
+      "id": "01abe9d4-80e5-4745-adfa-baa622ce2a69",
+      "name": "IF Eligible For Segment C"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Current user from IF node\nconst user = $json;\n\n// 1. Determine name\nlet name = user.preferred_name || user.first_name || \"there\";\n\n// 2. Determine language (normalised)\nlet lang = (user.preferred_language || \"en\").toLowerCase();\n\n// 3. Map language -> template name (your approved templates)\nlet template;\nswitch (lang) {\n  case \"ms\":\n    template = \"ara_followup_02\";\n    break;\n  case \"id\":\n    template = \"ara_followup_02_id\";\n    break;\n  case \"ta\":\n    template = \"ara_followup_02_ta\";\n    break;\n  case \"zh\":\n    template = \"ara_followup_02_zh\";\n    break;\n  default:\n    template = \"ara_followup_02_en\";\n    break;\n}\n\n// 4. Return ONE item (because mode = Run Once for Each Item)\nreturn {\n  json: {\n    user_id: user.user_id || user.id || null,\n    telegram_id: user.telegram_id || null,\n    name,\n    lang,\n    template,\n    context: null, // will be filled later by Extract Context\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f231c1e8-3235-42e3-b8da-9f88caeaef33",
+      "name": "Prepare Template Payload"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "limit": 20,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{$json.user_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        64
+      ],
+      "id": "9b6461f7-35b2-4932-b7a8-7b8f46a27021",
+      "name": "Get Last Topic Row"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "e35efc44-818e-4492-a5fa-bf9a32031e87",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Context for Segment C check-ins\n// INPUT: up to 20 conversation rows for ONE user from \"Get Last Topic Row\"\n// OUTPUT: single item: { context: <raw_topic_string> }\n\nconst items = $input.all();\nconst rows = items.map(i => i.json);\n\n// Helper to clean text\nfunction cleanText(text) {\n  if (!text) return null;\n  const str = String(text).replace(/\\s+/g, ' ').trim();\n  return str || null;\n}\n\n// Neutral fallback pool (low-confidence anchor)\nconst neutralFallbacks = [\n  'today',\n  'earlier',\n  'that task',\n  'what you were working on',\n];\n\nfunction pickNeutralFallback() {\n  // deterministic enough for debugging: choose based on minute\n  const idx = (new Date().getMinutes()) % neutralFallbacks.length;\n  return neutralFallbacks[idx];\n}\n\nif (rows.length === 0) {\n  return [\n    {\n      json: {\n        context: pickNeutralFallback(),\n      },\n    },\n  ];\n}\n\n// Sort by created_at (latest first)\nrows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\n\n// --- Helpers --------------------------------------------------------\n\nconst boringUserMessages = new Set([\n  'ok', 'okay', 'ya', 'ye', 'yep',\n  'tak', 'x', 'tiada',\n  'hi', 'hai', 'hello',\n  'assalammualaikum', 'assalamualaikum', 'salam',\n  'bye', 'bye ros',\n]);\n\nfunction isGreetingOrBye(lower) {\n  const greetingPrefixes = [\n    'assalammualaikum',\n    'assalamualaikum',\n    'salam',\n    'hi',\n    'hai',\n    'hello',\n    'bye',\n  ];\n\n  if (boringUserMessages.has(lower)) return true;\n\n  return greetingPrefixes.some((p) =>\n    lower === p ||\n    lower.startsWith(p + ' ') ||\n    lower.startsWith(p + ',')\n  );\n}\n\nfunction isMetaOrOnboardingAssistant(lower) {\n  return (\n    // context-summary boilerplate\n    (lower.includes('previous context:') &&\n      lower.includes('create an updated context summary')) ||\n\n    // onboarding / intro\n    lower.includes('welcome the user to enjoy 7 days free usage') ||\n    lower.includes('terima kasih contact ara') ||\n    lower.includes('thanks for contacting ara') ||\n    lower.includes('bahasa yang saya guna ni okay tak') ||\n    lower.includes('is this language okay') ||\n\n    // generic intro answers about Ara\n    lower.includes('nama saya ara') ||\n    lower.includes('my name is ara') ||\n    lower.includes('saya di sini untuk berbual dan membantu') ||\n\n    // salam reply\n    (lower.includes('waalaikumsalam') &&\n      lower.includes('apa khabar hari ini'))\n  );\n}\n\n// 🔒 Priority 1: Context Anchor Hardening (reject command-like / generic / translated-ish anchors)\nfunction isGenericCommandLike(lower) {\n  // reject if message is basically a reminder-command or listing-command\n  const exact = new Set([\n    'reminders',\n    'upcoming reminders',\n    'list reminders',\n    'list my reminders',\n    'list my upcoming reminders',\n    'list upcoming reminders',\n    'show reminders',\n    'show my reminders',\n    'show my upcoming reminders',\n  ]);\n\n  const startsWithAny = (prefixes) => prefixes.some(p => lower.startsWith(p));\n\n  const starts = [\n    'list ',\n    'show ',\n    'remind me',\n    'set a reminder',\n    'set reminder',\n    'cancel ',\n    'delete ',\n    'remove ',\n    'schedule ',\n    'buat reminder',\n    'ingatkan saya',\n    'ingatkan aku',\n    'tolong ingatkan',\n    'batal ',\n    'padam ',\n    'hapus ',\n    'senarai ',\n    'tunjuk ',\n  ];\n\n  // common “again / same time” patterns should not become anchor text\n  const patterns = [\n    'same time',\n    'remind me again',\n    'again tomorrow',\n    'again today',\n    'same reminder',\n    'sekali lagi',\n    'ingatkan lagi',\n    'esok sama',\n  ];\n\n  if (exact.has(lower)) return true;\n  if (startsWithAny(starts)) return true;\n  if (patterns.some(p => lower.includes(p))) return true;\n\n  // if it is very short and command-ish, reject\n  if (\n    lower.split(' ').length <= 3 &&\n    (lower.includes('remind') || lower.includes('ingat') || lower.includes('list') || lower.includes('senarai'))\n  ) {\n    return true;\n  }\n\n  return false;\n}\n\nfunction looksLikeForeignLeak(lower) {\n  // This is NOT full language detection. It's a targeted guardrail for the exact failures you saw.\n  // Add/remove tokens as you observe new leaks.\n  const foreignTokens = [\n    'mañana',\n    'próximas',\n    'proximas',\n    'recordatorios',\n    'tu sitio web',\n    'sitio web',\n    'próximos',\n    'proximos',\n  ];\n\n  return foreignTokens.some(t => lower.includes(t));\n}\n\n// ✅ reject low-signal state-only messages as anchors (e.g., \"busy\", \"done\", \"ok\")\nfunction isLowSignalStateMessage(lower) {\n  const lowSignalTokens = [\n    // English\n    'busy', 'tired', 'ok', 'okay', 'noted', 'done', 'later', 'soon',\n    // Malay\n    'penat', 'sibuk', 'ok', 'baik', 'faham', 'noted', 'dah', 'siap', 'nanti', 'kejap',\n  ];\n\n  // Remove punctuation for stronger matching\n  const simplified = lower.replace(/[^\\p{L}\\p{N}\\s]/gu, '').trim();\n  const words = simplified.split(/\\s+/).filter(Boolean);\n\n  // Very short + contains low-signal token => reject\n  if (words.length <= 4) {\n    if (lowSignalTokens.some(t => simplified.includes(t))) return true;\n  }\n\n  // Common short confirmations\n  const exact = new Set([\n    'busy', 'busy a bit', 'ok', 'okay', 'noted', 'done', 'later', 'soon',\n    'sibuk', 'penat', 'dah', 'siap', 'nanti', 'kejap',\n  ]);\n  if (exact.has(simplified)) return true;\n\n  return false;\n}\n\n// ✅ NEW: reject user meta-preference / onboarding-type messages as anchors\nfunction isMetaPreferenceUserMessage(lower) {\n  const simplified = lower.replace(/[^\\p{L}\\p{N}\\s]/gu, '').trim();\n  const words = simplified.split(/\\s+/).filter(Boolean);\n\n  // Common preference/meta tokens (EN + BM)\n  const tokens = [\n    'english', 'malay', 'bahasa', 'bm',\n    'language', 'bahasa',\n    'prefer', 'preferred', 'selesa',\n    'speak', 'guna', 'gunakan', 'pakai', 'terus guna',\n    'timezone', 'time zone', 'kl', 'kuala lumpur',\n  ];\n\n  // Short preference statements should never be anchors\n  if (words.length <= 6 && tokens.some(t => simplified.includes(t))) return true;\n\n  // Explicit starters\n  if (simplified.startsWith('i prefer')) return true;\n  if (simplified.startsWith('prefer')) return true;\n\n  return false;\n}\n\n// --- PASS 1: look only at user_message ------------------------------\n\nlet topic = null;\n\nfor (const r of rows) {\n  const type = (r.message_type || '').toLowerCase();\n\n  // Skip previous proactive check-ins of any kind\n  if (type === 'proactive_checkin' || type === 'proactive_checkin_segment_c') {\n    continue;\n  }\n\n  if (!r.user_message) continue;\n\n  const cleaned = cleanText(r.user_message);\n  if (!cleaned) continue;\n\n  const lower = cleaned.toLowerCase();\n\n  const isSlashCommand = lower.startsWith('/');\n  const isShort = cleaned.length <= 5;\n  const isGreeting = isGreetingOrBye(lower);\n\n  if (isSlashCommand || isShort || isGreeting) continue;\n\n  // reject command-like / generic anchors (Priority 1)\n  if (isGenericCommandLike(lower)) continue;\n\n  // reject known foreign-language leakage tokens\n  if (looksLikeForeignLeak(lower)) continue;\n\n  // reject low-signal state-only messages\n  if (isLowSignalStateMessage(lower)) continue;\n\n  // ✅ NEW: reject meta preference / onboarding user messages (e.g., \"I prefer English\")\n  if (isMetaPreferenceUserMessage(lower)) continue;\n\n  // This is a meaningful user topic -> use it and stop\n  topic = cleaned;\n  break;\n}\n\n// --- PASS 2: if still nothing, consider assistant_response ----------\n\nif (!topic) {\n  for (const r of rows) {\n    const type = (r.message_type || '').toLowerCase();\n\n    if (type === 'proactive_checkin' || type === 'proactive_checkin_segment_c') {\n      continue;\n    }\n\n    if (!r.assistant_response) continue;\n\n    const cleaned = cleanText(r.assistant_response);\n    if (!cleaned) continue;\n\n    const lower = cleaned.toLowerCase();\n\n    if (isMetaOrOnboardingAssistant(lower)) continue;\n\n    // reject assistant outputs that are command-like anchors or foreign leakage\n    if (isGenericCommandLike(lower)) continue;\n    if (looksLikeForeignLeak(lower)) continue;\n\n    // reject low-signal state-only assistant lines too\n    if (isLowSignalStateMessage(lower)) continue;\n\n    // ✅ NEW: reject preference/meta-ish assistant lines too (extra safety)\n    if (isMetaPreferenceUserMessage(lower)) continue;\n\n    // avoid very long essays as topic\n    if (cleaned.length > 200) continue;\n\n    topic = cleaned;\n    break;\n  }\n}\n\n// Final fallback (neutral human anchor)\nif (!topic) {\n  topic = pickNeutralFallback();\n}\n\nreturn [\n  {\n    json: {\n      context: topic,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ],
+      "id": "96f9fbb8-261d-4b87-b2d7-8f2c45a4ecdd",
+      "name": "Extract Context"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Current item = one user\nconst user = $json;\nconst userId = user.user_id ?? user.id ?? null;\n\n// -------------------------------------------------\n// Helper: pick best display name\n// Order: preferred_name -> first_name -> telegram_username -> \"there\"\n// Also treats \"null\" (string) and empty strings as missing\n// -------------------------------------------------\nfunction pickDisplayName(u) {\n  const candidates = [\n    u.preferred_name,\n    u.first_name,\n    u.telegram_username,\n  ];\n\n  for (const raw of candidates) {\n    if (raw === undefined || raw === null) continue;\n\n    const s = String(raw).trim();\n    if (!s) continue;\n    if (s.toLowerCase() === 'null') continue; // handle \"null\" stored as text\n\n    return s;\n  }\n\n  return 'there';\n}\n\nconst displayName = pickDisplayName(user);\n\n// -------------------------------------------------\n// 1. Calculate hours since last interaction\n// -------------------------------------------------\nlet hoursInactive = null;\n\nif (user.last_interaction) {\n  const lastInteraction = new Date(user.last_interaction);\n  hoursInactive =\n    (Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60); // hours\n}\n\n// -------------------------------------------------\n// 2. Get ALL Segment C check-ins from the other node\n//    Node name must match exactly: \"Get Segment C Checkins\"\n// -------------------------------------------------\nconst checkinItems = $items('Get Segment C Checkins') || [];\n\n// Filter to only this user's Segment C check-ins\nconst userCheckins = checkinItems\n  .map(i => i.json)\n  .filter(row => row.user_id === userId);\n\n// -------------------------------------------------\n// 3. Find this user's latest Segment C check-in\n// -------------------------------------------------\nlet lastCheckin = null;\nlet daysSinceCheckin = null;\n\nif (userCheckins.length > 0) {\n  lastCheckin = userCheckins.reduce((latest, row) => {\n    if (!row.created_at) return latest;\n\n    const ts = new Date(row.created_at);\n    if (!latest || ts > latest) return ts;\n    return latest;\n  }, null);\n\n  if (lastCheckin) {\n    daysSinceCheckin =\n      (Date.now() - lastCheckin.getTime()) / (1000 * 60 * 60 * 24); // days\n  }\n}\n\n// -------------------------------------------------\n// 4. Determine eligibility for Segment C\n// -------------------------------------------------\nlet eligible = false;\n\n// Rule:\n// - inactive >= 120 hours (5 days)\n// - AND (no previous Segment C check-in OR last check-in >= 10 days ago)\nif (hoursInactive !== null && hoursInactive >= 120) {\n  if (daysSinceCheckin === null || daysSinceCheckin >= 10) {\n    eligible = true;\n  }\n}\n\n// -------------------------------------------------\n// 5. Return one item\n// -------------------------------------------------\nreturn {\n  json: {\n    user_id: userId,\n\n    // Clean, ready-to-use identity fields\n    name: displayName,                                      // <<< use this later\n    first_name: user.first_name ?? null,\n    preferred_name: user.preferred_name ?? null,\n    telegram_username: user.telegram_username ?? null,\n    preferred_language: user.preferred_language ?? null,\n    telegram_id: user.telegram_id ?? null,\n    whatsapp_id: user.whatsapp_id ?? null,\n\n    // Eligibility info\n    hoursInactive,\n    lastCheckin: lastCheckin ? lastCheckin.toISOString() : null,\n    daysSinceCheckin,\n    eligible_for_segment_c: eligible,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        208
+      ],
+      "id": "3fd5472b-7b44-48f1-959b-3555325b9866",
+      "name": "Compute Segment C Eligibility"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Base user/template data from Merge node\nconst base = $node[\"Merge\"].json || {};\n\n// Try to find the full user record from Get Users by id or telegram_id\nconst allUsers = $items(\"Get Users\") || [];\nlet fullUser = null;\n\nfor (const item of allUsers) {\n  const u = item.json || {};\n\n  const matchById =\n    base.user_id && (u.id === base.user_id || u.user_id === base.user_id);\n\n  const matchByTelegram =\n    base.telegram_id && u.telegram_id === base.telegram_id;\n\n  if (matchById || matchByTelegram) {\n    fullUser = u;\n    break;\n  }\n}\n\n\n// Helper to clean candidate values\nconst clean = (v) => {\n  if (v === null || v === undefined) return null;\n  const s = String(v).trim();\n  if (!s) return null;\n\n  const lower = s.toLowerCase();\n  // Treat these as “no value”\n  if (lower === 'null' || lower === 'undefined') return null;\n\n  return s;\n};\n\n// Name priority using full user record where available\nconst preferred = clean(fullUser?.preferred_name ?? base.preferred_name);\nconst first = clean(fullUser?.first_name ?? base.first_name);\nconst handle = clean(fullUser?.telegram_username ?? base.telegram_username);\nconst legacyName = clean(base.name);\n\nconst name = preferred || first || handle || legacyName || 'there';\n\n// Language priority: explicit lang -> preferred_language -> 'en'\nconst lang =\n  (clean(base.lang) || clean(fullUser?.preferred_language) || 'en').toLowerCase();\n\n\n// Original context handling\nconst rawContext = (base.context || '').toString();\n\n\n// 2. Get localized topic phrase from Localise Topic Phrase output (this node's input)\nlet localizedTopic = \"\";\n\ntry {\n  const content = $json.output?.[0]?.content?.[0]?.text;\n  if (typeof content === \"string\" && content.trim()) {\n    localizedTopic = content.trim();\n  }\n} catch (e) {\n  // ignore and fall back\n}\n\n// 3. Normalise / clean the topic phrase\nfunction normalizeTopic(topic, lang) {\n  if (!topic || typeof topic !== \"string\") return \"\";\n  let t = topic.trim();\n  if (!t) return \"\";\n\n  let lower = t.toLowerCase();\n\n  // Helper to strip a list of prefixes\n  const stripPrefixes = (current, prefixes) => {\n    let txt = current;\n    let low = txt.toLowerCase();\n    for (const p of prefixes) {\n      if (low.startsWith(p.toLowerCase())) {\n        txt = txt.slice(p.length).trim();\n        low = txt.toLowerCase();\n        break;\n      }\n    }\n    return txt;\n  };\n\n  if (lang === \"ms\") {\n    t = stripPrefixes(t, [\n      \"apa cerita pasal\",\n      \"apa cerita tentang\",\n    ]);\n    lower = t.toLowerCase();\n    if (lower.startsWith(\"pasal \")) t = t.slice(\"pasal \".length).trim();\n    if (lower.startsWith(\"tentang \")) t = t.slice(\"tentang \".length).trim();\n  }\n\n  if (lang === \"id\") {\n    t = stripPrefixes(t, [\n      \"gimana cerita tentang\",\n      \"gimana cerita soal\",\n    ]);\n    lower = t.toLowerCase();\n    if (lower.startsWith(\"tentang \")) t = t.slice(\"tentang \".length).trim();\n    if (lower.startsWith(\"soal \")) t = t.slice(\"soal \".length).trim();\n  }\n\n  if (lang === \"en\") {\n    t = stripPrefixes(t, [\n      \"how’s everything going with\",\n      \"how's everything going with\",\n    ]);\n    lower = t.toLowerCase();\n    if (lower.startsWith(\"about \")) t = t.slice(\"about \".length).trim();\n  }\n\n  // You can add similar guards for 'ta' / 'zh' if needed later\n\n  return t.trim();\n}\n\nlocalizedTopic = normalizeTopic(localizedTopic, lang);\n\n// If empty after cleaning, fall back to a generic phrase\nif (!localizedTopic) {\n  if (lang === \"ms\") {\n    localizedTopic = \"keadaan di pihak awak\";\n  } else if (lang === \"id\") {\n    localizedTopic = \"keadaan di pihak kamu\";\n  } else if (lang === \"ta\") {\n    localizedTopic = \"உங்க பக்கம் எல்லாம்\";\n  } else if (lang === \"zh\") {\n    localizedTopic = \"你那边的情况\";\n  } else {\n    localizedTopic = \"everything on your side\";\n  }\n}\n\n// Optional: special-case for \"Feel like just chatting\"\nconst isJustChatting = rawContext.toLowerCase().includes(\"feel like just chatting\");\n\n// 4. Build body based on preferred language using your approved templates\nlet body;\n\nswitch (lang) {\n  case \"ms\":\n    if (isJustChatting) {\n      body = `Hi ${name}, saja tanya khabar.\n\nMasih rasa nak borak-borak macam hari tu? Kalau teringin nak sembang atau luah apa-apa, just reply je.\n\nSaya sentiasa ada untuk awak 😊`;\n    } else {\n      body = `Hi ${name}, saja tanya khabar.\n\nApa cerita pasal ${localizedTopic}? Harap semuanya okay. \n\nKalau ada apa-apa update, rasa nak luah apa-apa atau nak saya bantu apa-apa, just share je. \n\nSaya sentiasa ada untuk awak 😊`;\n    }\n    break;\n\n  case \"id\":\n    body = `Hi ${name}, cuma mau tanya kabar.\n\nGimana cerita tentang ${localizedTopic}? Semoga semuanya baik-baik saja.\n\nKalau ada update, mau curhat, atau butuh bantuan apa pun, tinggal bilang ya.\n\nAku selalu ada untuk kamu 😊`;\n    break;\n\n  case \"ta\":\n    body = `ஹை ${name}, உங்க நலமா இருக்கீங்கன்னு தெரிஞ்சிக்கத்தான் கேட்டேன்.\n\n${localizedTopic} பற்றிய விஷயம் எப்படி இருக்கு? எல்லாம் நன்றாக இருக்கட்டும்.\n\nஏதாவது புதுப்பிப்பு இருந்தா, மனசில் ஏதாவது வச்சிருந்தா, அல்லது என்னால உதவி செய்ய வேண்டும்னு தோணினா, சொல்லிட்டாலே போதும்.\n\nநான் எப்போதும் உங்களுக்கு ஆதரவாக இருக்கேன் 😊`;\n    break;\n\n  case \"zh\":\n    body = `嗨 ${name}，就是来问候一下你。\n\n关于${localizedTopic}，最近情况怎么样？希望一切顺利。\n\n如果有任何新的进展、心事，或者需要我帮忙的地方，随时跟我说。\n\n我一直在这儿支持你 😊`;\n    break;\n\n  default: // 'en' and others\n    if (isJustChatting) {\n      body = `Hi ${name}, just checking in 😊\n\nStill feel like chatting these days? If you ever want to vent, brainstorm, or just talk, you can always reply here.\n\nI’m always here for you 😊`;\n    } else if (localizedTopic === \"everything on your side\") {\n      // Special case so sentence is natural\n      body = `Hi ${name}, just checking in.\n\nHow’s everything going with your side? Hope all is well.\n\nIf you have any updates, want to share anything, or need help with something, just let me know.\n\nI’m always here for you 😊`;\n    } else {\n      body = `Hi ${name}, just checking in.\n\nHow’s everything going with ${localizedTopic}? Hope all is well.\n\nIf you have any updates, want to share anything, or need help with something, just let me know.\n\nI’m always here for you 😊`;\n    }\n    break;\n}\n\n// 5. Return final payload: keep base fields, but override name, then add localized_topic + body\nreturn [\n  {\n    json: {\n      ...base,              // user_id, telegram_id, etc.\n      name,                 // <-- overrides base.name = 'there'\n      localized_topic: localizedTopic,\n      body,\n    },\n  },\n];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "4dab6275-8f8e-4f15-a4c4-621ada58f4ec",
+      "name": "Build WhatsApp Body"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI-2025-04-14"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are ARA, a multilingual assistant.\n\nYour job is to take a raw topic from a previous conversation and turn it into a short, natural phrase that can be inserted into a follow-up message.\n\nVERY IMPORTANT:\n- You must output ONLY the inner topic phrase, NOT the whole sentence.\n- Do NOT include any of these surrounding words in your output:\n  - \"How’s everything going with\"\n  - \"How's everything going with\"\n  - \"Apa cerita pasal\"\n  - \"Gimana cerita tentang\"\n  - \"tentang\"\n  - \"关于\"\n  - any question marks or punctuation.\n\nCRITICAL TIME RULE (MUST FOLLOW):\n- Whatever time expressions appear in the raw topic (e.g. “malam ini”, “today”, “tonight”, “later”, “this evening”, “in 40 minutes”, “esok”), they ALWAYS refer to the **past** in a follow-up message.\n- You MUST convert all such expressions into a **neutral/past-style phrasing**, such as:\n  - Malay: “hari tu”\n  - English: “that day”\n  - Indonesian: “waktu itu”\n- NEVER output any phrase that sounds like the event is happening *right now* or *in the future*. Examples of forbidden outputs:\n  - “malam ini”\n  - “tonight”\n  - “later”\n  - “hari ini”\n  - “in 40 minutes”\n  - “this evening”\n- All follow-up topics must sound like they refer to something that has already happened or has already passed.\n\nGeneral rules:\n1. Understand the meaning and sentiment of the raw topic.\n2. Rewrite it into a short, natural phrase (2–6 words).\n3. Translate it into the target language: {{target_language}}.\n4. Ensure it fits grammatically after these frames:\n   - English: \"How’s everything going with {{topic}}?\"\n   - Malay: \"Apa cerita pasal {{topic}}?\"\n   - Indonesian: \"Gimana cerita tentang {{topic}}?\"\n   - Tamil: \"{{topic}} பற்றிய விஷயம் எப்படி இருக்கிறது?\"\n   - Chinese: \"关于 {{topic}} 的事情怎么样了？\"\n5. Prefer concrete subjects or activities (e.g. “client meeting”, “bus trip”, “factoring research”, “governance advice”).\n6. Avoid empty or abstract add-ons like “time”, “situation”, “matter”, “progress” unless required.\n7. If the topic is about a **time-bound event**, ALWAYS convert it to a past/neutral phrasing:\n   - EN: “your bus trip to town”, “your dinner date with your husband”\n   - MS: “perjalanan naik bas ke bandar hari tu”, “janji temu dengan hubby hari tu”\n   - ID: “perjalanan naik bus ke kota waktu itu”\n8. If the topic is a **general situation** (“everything on your end”, etc.):\n   - EN: “everything on your side”\n   - MS: “urusan di pihak awak”\n   - ID: “keadaan di pihak kamu”\n9. If the topic is about wanting to chat:\n   - EN: “just chatting”\n   - MS: “borak-borak hari tu”\n   - ID: “ngobrol santai waktu itu”\n\n10. If the topic is about asking what I can help with, or how to do something\n    (e.g. “can you help”, “can u help”, “can you suggest how”, “how should I do this”),\n    and there is no clear concrete subject in the raw_topic\n    (no mention of job, proposal, business, report, project, etc.),\n\n    then you MUST NOT output phrases like:\n    - “getting help from me”\n    - “my help”\n    - “your question to me that day”\n\n    Instead, treat it as a general well-being check and use the same phrases as\n    for general situation:\n\n    - EN: “everything on your side”\n    - MS: “urusan di pihak awak”\n    - ID: “keadaan di pihak kamu”\n    - TA / ZH: a natural equivalent meaning “how things are on your side”.\n\n\n11. Never copy the raw topic literally if unnatural. Transform it to what a human would naturally reference during a check-in.\n\n12. Thank-you / closing-only topics:\n    If the raw topic mainly shows the user:\n    - saying thank you (e.g. “ok terima kasih ara”, “ok thanks”, “thank you very much”, “tq”, “tqsm”), AND\n    - there is no clear concrete subject (no task, event, place, reminder, or problem described),\n\n    then you MUST treat it as a general well-being check, NOT as a topic about “gratitude”.\n\n    In these cases, output the same phrase as for a general situation:\n\n    - EN: “everything on your side”\n    - MS: “urusan di pihak awak”\n    - ID: “keadaan di pihak kamu”\n    - TA / ZH: use a natural equivalent meaning “how things are on your side”.\n\n    Do NOT output phrases like:\n    - “your thanks to me that day”\n    - “your gratitude”\n    - “your appreciation”\n    or anything that makes the “thank you” sound like the topic itself.\n\nExample (thank-you closer):\n- Raw topic (Malay): “ok terima kasih ara ✌️”\n  → EN topic phrase: “everything on your side”\n  → MS topic phrase: “urusan di pihak awak”\n  → ID topic phrase: “keadaan di pihak kamu”\n\n\nIf the raw topic includes any of these patterns:\n\nasking about a place, location, town, city, area\n(“where is…”, “dimana…”, “what is the next city…”, “is there a beach…”,\n“what’s nearby…”, “tempat apa…”, etc.)\n\nor the user was exploring/asking information about a place\n(Kemunting, Melaka, Taiping, Kuantan, Penang, etc.)\n\nThen you MUST transform it into a human-style travel/event topic, not a literal question.\n\nUse these formats:\nMalay (ms)\n\n“jalan-jalan ke <place> hari tu”\n\n“plan ke <place> hari tu”\n\n“pergi <place> hari tu”\n\nEnglish (en)\n\n“your trip to <place> that day”\n\n“your plans for <place> that day”\n\nIndonesian (id)\n\n“jalan-jalan ke <place> waktu itu”\n\n“rencana ke <place> waktu itu”\n\nTamil / Chinese\n\nKeep the same pattern in natural phrasing:\n\nTamil: “<place> போனது பற்றிய விஷயம்”\n\nChinese: “去<place> 的行程那天”\n\nSpecial Note:\n\nALWAYS convert city/place questions into a past-framed casual activity,\nNEVER into literal translations like:\n\n“bandar seterusnya”\n\n“di mana lokasi”\n\n“apa bandar seterusnya”\n\nYou are NOT summarising the question, you are summarising the topic.\n\nExamples (PATTERN-BASED):\n- Event with specific time window:\n  Raw: user asking about a bus within 40 minutes.\n  → EN: “your bus trip to town”\n  → MS: “perjalanan naik bas ke bandar hari tu”\n\n- User felt like chatting:\n  Raw: “feel like just chatting”\n  → EN: “just chatting”\n  → MS: “borak-borak hari tu”\n\n- General state:\n  Raw: “everything on your end”\n  → EN: “everything on your side”\n  → MS: “urusan di pihak anda”\n\n- Preparing for a dinner/date “malam ini”:\n  Raw includes “pukul 4:38 petang ini” / “malam ini”\n  → MS: “janji temu dengan hubby hari tu”\n\nApply these patterns to ALL future cases automatically.\n\nOutput format:\n- Return ONLY the topic phrase string, nothing else.\n"
+            },
+            {
+              "content": "=raw_topic: {{ $json.context }}\ntarget_language: {{ $json.lang }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        0
+      ],
+      "id": "b98c2405-bd52-49e1-820a-03607d45f9da",
+      "name": "Localise Topic Phrase"
+    },
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Build WhatsApp Body').item.json.user_id }}"
+            },
+            {
+              "fieldId": "telegram_chat_id",
+              "fieldValue": "={{ $('Build WhatsApp Body').item.json.telegram_id }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.sid }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "proactive_checkin_segment_c"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "assistant_response",
+              "fieldValue": "={{ $json.body }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2368,
+        64
+      ],
+      "id": "8ba0207a-8f3f-46e5-95b5-9f3dece8139b",
+      "name": "Update Conversation"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -256,
+        0
+      ],
+      "id": "1ec55a6c-a5bd-4538-bcad-78773195677a",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "users",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_active",
+              "condition": "eq",
+              "keyValue": "=true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        256
+      ],
+      "id": "cf095dc7-87dc-44be-80ca-37b7be600e32",
+      "name": "Get Users"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "message_type",
+              "condition": "eq",
+              "keyValue": "proactive_checkin"
+            },
+            {
+              "keyName": "message_type",
+              "condition": "eq",
+              "keyValue": "proactive_checkin_segment_c"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        64
+      ],
+      "id": "502a1d26-2055-4714-be35-ec7370820c68",
+      "name": "Get Segment C Checkins"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Current item\nconst user = $json;\n\nconst raw = user.telegram_id || '';   // mixed: could be chat id or phone\nlet whatsappTo = null;\n\n// Simple heuristic: treat as phone if it looks like a Malaysian-style number\n// - starts with '+' or a digit\n// - length at least 10\nlet trimmed = String(raw).trim();\n\nif (trimmed) {\n  // If it's a pure Telegram chat ID like \"138220323\", this will also pass length,\n  // so we tighten it a bit: must start with '6' or '+6' for Malaysia.\n  const startsLikeMY = trimmed.startsWith('6') || trimmed.startsWith('+6');\n\n  if (startsLikeMY && trimmed.replace(/\\D/g, '').length >= 10) {\n    // Ensure it has a leading '+'\n    if (!trimmed.startsWith('+')) {\n      trimmed = `+${trimmed}`;\n    }\n    whatsappTo = `${trimmed}`;\n  }\n}\n\n// Return, adding whatsapp_to\nreturn {\n  json: {\n    ...user,\n    whatsapp_to: whatsappTo,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        0
+      ],
+      "id": "cfd3f4c2-ba28-41cc-bc44-7f43473b873c",
+      "name": "Prepare WhatsApp To"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b4a209d1-94e5-432b-a781-0589956dd9e8",
+              "leftValue": "={{ !!$json.whatsapp_to }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1696,
+        0
+      ],
+      "id": "8f93e990-48be-4a08-a24b-f1ab9661330f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1120,
+        208
+      ],
+      "id": "1e65f5d1-489e-4366-9972-37e300f80fce",
+      "name": "Triggers at 9.05 AM Daily"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/AC_REDACTED/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+601125911400"
+            },
+            {
+              "name": "To",
+              "value": "={{ 'whatsapp:' + $json.whatsapp_to }}"
+            },
+            {
+              "name": "ContentSid",
+              "value": "={{ $json.content_sid }}"
+            },
+            {
+              "name": "ContentVariables",
+              "value": "={{ JSON.stringify({\n  \"1\": $json.name || 'there',\n  \"2\": $json.localized_topic || 'everything on your side'\n}) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2144,
+        0
+      ],
+      "id": "6d15a015-6f1a-4828-bc8d-0a2d2f633c47",
+      "name": "Send Check-in Template"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Current item from previous node\nconst item = $json;\n\n// Normalise language\nconst rawLang =\n  item.lang ||\n  item.preferred_language ||\n  'en';\n\nconst lang = String(rawLang).toLowerCase();\n\n// Map of language -> ContentSid\nconst templateMap = {\n  en: 'HX0d9770a9619045506dd36eba1317bd47', // English template SID\n  ms: 'HXeb549b04b1d93b8c2e1a7925d4fde95f', // Malay\n  id: 'HX268e41a69a48cbc23b4746920813ba2d', // Indonesian\n  zh: 'HX3269c5e2c441de177f1483a13bca8c7f', // Chinese (if you have)\n  ta: 'HX46552560c195b480643d03c5af5ce78c', // Tamil (if you have)\n};\n\n// Fallback: use English if we don't have a template for this lang\nconst defaultSid = templateMap.en;\nconst contentSid = templateMap[lang] || defaultSid;\n\nreturn {\n  json: {\n    ...item,\n    lang,          // normalised\n    content_sid: contentSid,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        0
+      ],
+      "id": "c368e899-eb09-4d78-a426-f6db722b37fc",
+      "name": "Choose Template SID"
+    }
+  ],
+  "connections": {
+    "IF Eligible For Segment C": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Template Payload": {
+      "main": [
+        [
+          {
+            "node": "Get Last Topic Row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Topic Row": {
+      "main": [
+        [
+          {
+            "node": "Extract Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Context": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Compute Segment C Eligibility": {
+      "main": [
+        [
+          {
+            "node": "IF Eligible For Segment C",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Localise Topic Phrase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build WhatsApp Body": {
+      "main": [
+        [
+          {
+            "node": "Prepare WhatsApp To",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Localise Topic Phrase": {
+      "main": [
+        [
+          {
+            "node": "Build WhatsApp Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Prepare Template Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Users": {
+      "main": [
+        [
+          {
+            "node": "Compute Segment C Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Segment C Checkins": {
+      "main": [
+        [
+          {
+            "node": "Compute Segment C Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare WhatsApp To": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Choose Template SID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triggers at 9.05 AM Daily": {
+      "main": [
+        [
+          {
+            "node": "Get Segment C Checkins",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Choose Template SID": {
+      "main": [
+        [
+          {
+            "node": "Send Check-in Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Check-in Template": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Triggers at 9.05 AM Daily": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

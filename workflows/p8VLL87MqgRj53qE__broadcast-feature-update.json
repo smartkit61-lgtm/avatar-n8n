@@ -1,0 +1,921 @@
+{
+  "id": "p8VLL87MqgRj53qE",
+  "name": "Broadcast - Feature Update",
+  "active": 0,
+  "createdAt": "2026-02-03 11:50:27.113",
+  "updatedAt": "2026-02-05 03:18:20.135",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "to_whatsapp",
+              "value": "={{ $('Split - users').item.json.whatsapp_to }}"
+            },
+            {
+              "name": "name_safe",
+              "value": "={{ $('Split - users').item.json.preferred_name ? $('Split - users').item.json.preferred_name : 'there' }}"
+            },
+            {
+              "name": "message_text",
+              "value": "={{\n  (() => {\n    const u = $('Split - users').item.json || {};\n    const c = $('Set - constants').item.json || {};\n\n    const name = u.preferred_name ? u.preferred_name : 'there';\n    const lang = String(u.preferred_language || 'en').toLowerCase();\n\n    const isMs = lang === 'ms';\n\n    const feature = isMs\n      ? (c.feature_text_ms || c.feature_text || '')\n      : (c.feature_text_en || c.feature_text || '');\n\n    if (isMs) {\n      return (\n        'Hi ' + name + '! Makluman ARA: ' + feature + '.\\n\\n' +\n        'Kalau nak tahu lebih lanjut atau nak cuba, beritahu saya ya 😊'\n      );\n    }\n\n    return (\n      'Hi ' + name + '! ARA update: ' + feature + '.\\n\\n' +\n      'If you’d like to know more or try it out, let me know 😊'\n    );\n  })()\n}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -2064,
+        1136
+      ],
+      "id": "650e7b6d-23b8-49fb-b582-daa2bd90490c",
+      "name": "Set - build message (freeform)1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Source of truth: Split - users current item (has preferred_language)\nconst splitUser = $node['Split - users']?.json ?? null;\nconst user = (splitUser && splitUser.user_id) ? splitUser : ($json ?? {});\n\n// Window data may come from a different branch\nconst windowData = $json ?? {};\n\nconst c = $('Set - constants').first().json;\n\n// language from user (robust)\nconst langRaw = user.preferred_language ?? 'en';\nconst lang = String(langRaw).trim().toLowerCase();\nconst langBase = lang.split('-')[0];\n\n// ContentSid from constants (Utility first, fallback to old SIDs)\nlet contentSid = c.sid_en_utility ?? c.sid_en;\n\nif (langBase === 'ms') contentSid = c.sid_ms_utility ?? c.sid_ms ?? contentSid;\nelse if (langBase === 'id') contentSid = c.sid_id_utility ?? c.sid_id ?? contentSid;\nelse if (langBase === 'ta') contentSid = c.sid_ta_utility ?? c.sid_ta ?? contentSid;\nelse if (langBase === 'zh') contentSid = c.sid_zh_utility ?? c.sid_zh ?? contentSid;\n\n\n// ---- SAFE PHONE RESOLUTION ----\nconst rawPhone = user.whatsapp_to;\n\nif (!rawPhone) {\n  throw new Error(\n    `Missing whatsapp_to. Incoming user keys: ${Object.keys(user).join(', ')}`\n  );\n}\n\nconst digits = String(rawPhone)\n  .replace(/^whatsapp:/, '')\n  .replace(/^\\+/, '')\n  .replace(/\\s+/g, '')\n  .replace(/[^\\d]/g, '');\n\nif (!digits) {\n  throw new Error(`Invalid whatsapp_to after cleanup: \"${rawPhone}\"`);\n}\n\nconst to = `whatsapp:+${digits}`;\n\n// vars\nconst nameSafe = user.preferred_name ? user.preferred_name : 'there';\n// Feature text by language (fallbacks to EN, then legacy feature_text)\nlet featureText =\n  c.feature_text_en ?? c.feature_text ?? '';\n\nif (langBase === 'ms') featureText = c.feature_text_ms ?? featureText;\nelse if (langBase === 'id') featureText = c.feature_text_id ?? featureText;\nelse if (langBase === 'ta') featureText = c.feature_text_ta ?? featureText;\nelse if (langBase === 'zh') featureText = c.feature_text_zh ?? featureText;\n\n\n// (optional) for logs\nconst messageText =\n  `Hi ${nameSafe}! ARA has just been updated with a new feature: ${featureText}. ` +\n  `Let me know if you’d like more details or want to try it out 😊`;\n\nreturn {\n  // keep user fields (for DB inserts etc.)\n  ...user,\n\n  // keep window fields from the branch that produced them\n  last_inbound_at: windowData.last_inbound_at ?? null,\n  window_open: windowData.window_open ?? null,\n\n  // debug\n  debug_lang_raw: user.preferred_language,\n  debug_lang_norm: lang,\n  debug_lang_base: langBase,\n  debug_sid_chosen: contentSid,\n\n  content_sid: contentSid,\n  to_whatsapp: to,\n  name_safe: nameSafe,\n  message_text: messageText,\n  content_variables: JSON.stringify({ '1': nameSafe, '2': featureText }),\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2128,
+        1328
+      ],
+      "id": "a4313da1-2934-47a2-93e0-2901bcc14f63",
+      "name": "JS - pick template + vars1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/AC_REDACTED/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "={{ $('Set - constants').first().json.twilio_from }}"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.to_whatsapp }}"
+            },
+            {
+              "name": "ContentSid",
+              "value": "={{ $json.content_sid }}"
+            },
+            {
+              "name": "ContentVariables",
+              "value": "={{ $json.content_variables }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1776,
+        1328
+      ],
+      "id": "249876d0-f160-401a-ba2b-711507fb8ca9",
+      "name": "HTTP - send template1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c714c809-f069-4db4-b4d2-e2fec063f17a",
+              "leftValue": "{{$json.sid}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1616,
+        1184
+      ],
+      "id": "36447410-7e46-4fde-a2ce-1b2d7d6dccef",
+      "name": "IF - send success?1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update public.broadcast_delivery\nset status = 'sent',\n    sent_at = now(),\n    last_attempt_at = now(),\n    attempt_count = attempt_count + 1,\n    last_twilio_message_sid = $3\nwhere user_id = $1\n  and version = $2;",
+        "options": {
+          "queryReplacement": "={{ $('Split - users').item.json.user_id }}, {{ $('Set - constants').item.json.version }}, {{ $json.sid }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1392,
+        1136
+      ],
+      "id": "bf166e86-844e-4695-b525-0a2d1bf9d93b",
+      "name": "PG - broadcast_delivery SENT1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update public.users\nset last_version_notified = $2\nwhere id = $1;",
+        "options": {
+          "queryReplacement": "={{ $('Split - users').item.json.user_id }}, {{ $('Set - constants').item.json.version }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1168,
+        1136
+      ],
+      "id": "fc71e301-e4d6-4888-87ce-24cb33f3c40a",
+      "name": "PG - set users.last_version_notified1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.conversations\n  (user_id, telegram_chat_id, message_id, message_type,\n   user_message, assistant_response,\n   action_taken, pending_action_resolved,\n   execution_id, created_at)\nvalues\n  ($1, $2, $3, $4,\n   null, $5,\n   'system_broadcast', true,\n   $6, now());",
+        "options": {
+          "queryReplacement": "={{ $('Split - users').item.json.user_id }}, {{ $('Split - users').item.json.whatsapp_to }}, {{ $('IF - send success?1').item.json.sid }}, {{ 'proactive_system_update' }}, {{ $if(\n  $(\"Set - build message (freeform)1\").isExecuted,\n  $(\"Set - build message (freeform)1\").item.json.message_text,\n  $if(\n    $(\"Edit Fields\").isExecuted,\n    $(\"Edit Fields\").item.json.message_text,\n    $(\"JS - pick template + vars1\").item.json.message_text\n  )\n) }}\n, {{ $execution.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -944,
+        1312
+      ],
+      "id": "6c235f23-0422-4967-be0e-465b92aebd51",
+      "name": "PG - insert conversations broadcast row1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update public.broadcast_delivery\nset last_attempt_at = now(),\n    attempt_count = attempt_count + 1,\n    last_error = $3\nwhere user_id = $1\n  and version = $2;",
+        "options": {
+          "queryReplacement": "={{ $('Split - users').item.json.user_id }}, {{ 'proactive_system_update' }}, {{ $json.error_message || $json.errorMessage || $json.body || $json.sid || 'send_failed' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1392,
+        1328
+      ],
+      "id": "6680c7be-1f2d-4ce7-9b16-206c21f3f1fc",
+      "name": "PG - broadcast_delivery FAIL1"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 30,
+              "unit": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -4976,
+        1472
+      ],
+      "id": "6dc323d0-08b7-45b2-b1bc-44db7da6aaea",
+      "name": "Cron - every 30 min"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "version",
+              "value": "v2.8.4"
+            },
+            {
+              "name": "feature_text",
+              "value": "ARA has been updated to help you receive calmer responses and manage reminders more smoothly — thank you for your patience , and sorry things weren’t always smooth 🙏"
+            },
+            {
+              "name": "default_tz",
+              "value": "Asia/Kuala_Lumpur"
+            },
+            {
+              "name": "twilio_from",
+              "value": "whatsapp:+601125911400"
+            },
+            {
+              "name": "account_sid",
+              "value": "AC_REDACTED"
+            },
+            {
+              "name": "sid_en",
+              "value": "HXaf1d8f073401571bdb951ad1f94670ea"
+            },
+            {
+              "name": "sid_ms",
+              "value": "HX30c78ed995fcdfd70c6daac428a4ab95"
+            },
+            {
+              "name": "sid_id",
+              "value": "HXd45b39e0d85a72f3b1c9b4c4e966fc15"
+            },
+            {
+              "name": "sid_ta",
+              "value": "HXf4d1820b2ffa8b1a9a0fcd2d1326b7e2"
+            },
+            {
+              "name": "sid_zh",
+              "value": "HX0cf4d2cdf9f53db0e7ca03e5c1bf16a8"
+            },
+            {
+              "name": "feature_text_en",
+              "value": "ARA has been updated to help you receive calmer responses and manage reminders more smoothly"
+            },
+            {
+              "name": "feature_text_ms",
+              "value": "ARA baru dikemas kini untuk membantu anda menerima jawapan yang lebih tenang serta peringatan yang diurus dengan lebih lancar"
+            },
+            {
+              "name": "sid_en_utility",
+              "value": "HX043a4acc159d44bb447a9b0fd6992c94"
+            },
+            {
+              "name": "sid_ms_utility",
+              "value": "HXaf1ffd5631a15a029105fb92bc525107"
+            }
+          ],
+          "number": [
+            {
+              "name": "quiet_minutes",
+              "value": 30
+            },
+            {
+              "name": "start_hour",
+              "value": 9
+            },
+            {
+              "name": "end_hour",
+              "value": 21
+            },
+            {
+              "name": "ttl_days",
+              "value": 3
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -4752,
+        1472
+      ],
+      "id": "d65e2ef2-ce2b-4c67-b731-e5875b4cb35f",
+      "name": "Set - constants"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  id as user_id,\n  telegram_id as whatsapp_to,\n  preferred_name,\n  coalesce(nullif(preferred_language,''), 'en') as preferred_language,\n  coalesce(current_timezone, home_timezone, timezone, $1) as user_tz\nfrom public.users\nwhere telegram_id is not null\n  and (last_version_notified is null or last_version_notified <> $2);\n",
+        "options": {
+          "queryReplacement": "={{ $json.default_tz }}, {{ $json.version }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4528,
+        1472
+      ],
+      "id": "a6c931f7-a685-42de-aeb6-8c203126f38e",
+      "name": "PG - get users not notified"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -4304,
+        1472
+      ],
+      "id": "0fcbac9d-11be-4484-a2d5-16ef71ff7868",
+      "name": "Split - users"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  $1::uuid as user_id,\n  created_at\nfrom public.conversations\nwhere user_id = $1\norder by created_at desc\nlimit 1;\n",
+        "options": {
+          "queryReplacement": "={{ $json.user_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4080,
+        992
+      ],
+      "id": "3aedb6f0-b27d-45e9-8bc3-45313f02f79f",
+      "name": "PG - last conversation row"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// RUN MODE: Run Once for Each Item ✅\n// This node is inside the Split - users loop\n\n// ✅ Source of truth MUST be the Split - users CURRENT item.\n// $items('Split - users')[0] is NOT reliable in loops (it can return the first item),\n// so use $node['Split - users'].json which is tied to the current loop item.\nconst splitUser = $node['Split - users']?.json ?? null;\nconst user = (splitUser && splitUser.user_id) ? splitUser : ($json ?? {});\n\n// Last conversation row (paired by user_id upstream)\nconst lastConvRow = $items('PG - last conversation row')?.[0]?.json ?? null;\n\nconst now = new Date();\nconst lastAt = lastConvRow?.created_at\n  ? new Date(lastConvRow.created_at)\n  : null;\n\n// ----------------------\n// Quiet-time check\n// ----------------------\nconst quietMinutes = Number(user.quiet_minutes ?? 30);\n\nlet lastOk = true;\nif (lastAt && !Number.isNaN(quietMinutes)) {\n  lastOk = (now - lastAt) > quietMinutes * 60 * 1000;\n}\n\n// ----------------------\n// Local-hour check\n// ----------------------\nconst tz = user.user_tz || user.default_tz || 'Asia/Kuala_Lumpur';\nconst startHour = Number(user.start_hour ?? 8);\nconst endHour   = Number(user.end_hour ?? 21);\n\nlet localHour = null;\n\ntry {\n  const parts = new Intl.DateTimeFormat('en-US', {\n    timeZone: tz,\n    hour: '2-digit',\n    hour12: false,\n  }).formatToParts(now);\n\n  localHour = Number(parts.find(p => p.type === 'hour')?.value);\n} catch (e) {\n  const parts = new Intl.DateTimeFormat('en-US', {\n    timeZone: 'Asia/Kuala_Lumpur',\n    hour: '2-digit',\n    hour12: false,\n  }).formatToParts(now);\n\n  localHour = Number(parts.find(p => p.type === 'hour')?.value);\n}\n\nconst hourOk =\n  localHour !== null &&\n  !Number.isNaN(startHour) &&\n  !Number.isNaN(endHour) &&\n  localHour >= startHour &&\n  localHour < endHour;\n\n// ----------------------\n// Final gate\n// ----------------------\nreturn {\n  ...user, // ✅ preserves preferred_language, whatsapp_to, etc.\n  last_conversation_at: lastAt ? lastAt.toISOString() : null,\n  user_local_hour: localHour,\n  eligible_time: Boolean(lastOk && hourOk),\n\n  // keep the PG row without overwriting user fields\n  last_conv_row: lastConvRow,\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3856,
+        992
+      ],
+      "id": "ee8c3b8b-f62a-47a4-a5bc-d270949077bc",
+      "name": "JS - eligibility gate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "efb8cff5-a6d8-48fa-ba3f-e6ebac29af81",
+              "leftValue": "={{ $json.eligible_time }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3632,
+        992
+      ],
+      "id": "79157aa6-8e86-45e2-aebb-e3c3da34e261",
+      "name": "IF - eligible now?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.broadcast_delivery (user_id, version, status, first_seen_at)\nvalues ($1, $2, 'pending', now())\non conflict (user_id, version)\ndo update set user_id = excluded.user_id\nreturning id, user_id, status, first_seen_at, attempt_count;\n",
+        "options": {
+          "queryReplacement": "={{ $json.user_id }}, {{ $('Set - constants').first().json.version }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3408,
+        992
+      ],
+      "id": "1466e4f5-49aa-4d0c-b096-effee677c837",
+      "name": "PG - upsert broadcast_delivery"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const user = $json;\nconst row = $items('PG - upsert broadcast_delivery')?.[0]?.json || {};\n\nconst ttlDays = Number(user.ttl_days ?? 3);\nconst now = new Date();\nconst firstSeen = row.first_seen_at ? new Date(row.first_seen_at) : null;\n\nlet expired = false;\nif (firstSeen) expired = (now - firstSeen) > ttlDays * 24 * 60 * 60 * 1000;\n\nreturn {\n  ...user,\n  delivery_id: row.id || null,\n  first_seen_at: row.first_seen_at || null,\n  attempt_count: row.attempt_count ?? 0,\n  expired\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3184,
+        992
+      ],
+      "id": "692ec484-a879-4022-b9e1-b70247cf0918",
+      "name": "JS - TTL check"
+    },
+    {
+      "parameters": {
+        "content": "check bz chatting and night time",
+        "width": 160
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -3904,
+        896
+      ],
+      "typeVersion": 1,
+      "id": "8f65b1a2-a832-4efe-920d-75aad3d96443",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Is 3 day yet?",
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -3216,
+        944
+      ],
+      "typeVersion": 1,
+      "id": "46b061e6-eaf3-4749-bf6e-8ae9845472b9",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "eac63753-b8ef-4613-9de1-e1c84b3e7ccb",
+              "leftValue": "={{ $json.expired }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2960,
+        992
+      ],
+      "id": "0d128f49-d81d-4275-b1ea-e2648e9a0d12",
+      "name": "IF - expired?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update public.broadcast_delivery\nset status = 'expired',\n    last_attempt_at = now()\nwhere user_id = $1\n  and version = $2\n  and status <> 'sent';",
+        "options": {
+          "queryReplacement": "={{ $json.user_id }}, {{$node[\"Set - constants\"].json[\"version\"]}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2736,
+        992
+      ],
+      "id": "1041a6cf-62b4-438e-9d1a-4f3764f3120f",
+      "name": "PG - mark expired"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select created_at\nfrom public.conversations\nwhere user_id = $1\n  and message_type = 'whatsapp'\n  and user_message is not null\norder by created_at desc\nlimit 1;",
+        "options": {
+          "queryReplacement": "={{ $json.user_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2736,
+        1184
+      ],
+      "id": "a5e85d62-2a94-4bb2-9a93-763160fa383e",
+      "name": "PG - last inbound user message"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// JS - 24h window1 (SAFE: preserve per-user fields)\n\n// ALWAYS take the per-user item from Split - users1 (current loop context)\nconst user = $items('Split - users')?.[0]?.json ?? {};\n\n// Result row from PG - last inbound user message1 (may be empty)\nconst inbound = $items('PG - last inbound user message')?.[0]?.json ?? null;\n\nlet windowOpen = false;\nlet lastInboundAt = null;\n\nif (inbound?.created_at) {\n  lastInboundAt = inbound.created_at;\n  const lastIn = new Date(lastInboundAt);\n  windowOpen = (new Date() - lastIn) <= 24 * 60 * 60 * 1000;\n}\n\nreturn {\n  ...user,  // ✅ this is the per-user fields from Split - users\n  last_inbound_at: lastInboundAt ?? null,\n  window_open: Boolean(windowOpen),\n};\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2512,
+        1184
+      ],
+      "id": "df247a5b-0717-4d57-8c76-56301cfd5b22",
+      "name": "JS - 24h window"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "a63f64b8-8df6-49f7-baac-34ee10600876",
+              "leftValue": "={{ $json.window_open }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        1184
+      ],
+      "id": "1fda1e7f-8141-475f-ad58-8abc470274cd",
+      "name": "IF - window open?"
+    },
+    {
+      "parameters": {
+        "from": "=+601125911400",
+        "to": "={{ $json.to_whatsapp }}",
+        "toWhatsapp": true,
+        "message": "={{ $json.message_text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        -1824,
+        1072
+      ],
+      "id": "809b7e38-867f-4399-bbfe-baca1069749e",
+      "name": "Send Freeform"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"parameters\": {\n    \"keepOnlySet\": true,\n    \"values\": {\n      \"string\": [\n        {\n          \"name\": \"whatsapp_to\",\n          \"value\": \"={{ $json.to_whatsapp }}\"\n        },\n        {\n          \"name\": \"sid\",\n          \"value\": \"={{ $json.content_sid }}\"\n        },\n        {\n          \"name\": \"message_text\",\n          \"value\": \"={{ $json.message_text }}\"\n        },\n        {\n          \"name\": \"content_variables\",\n          \"value\": \"={{ $json.content_variables }}\"\n        }\n      ],\n      \"boolean\": [\n        {\n          \"name\": \"window_open\",\n          \"value\": \"={{ $json.window_open }}\"\n        }\n      ],\n      \"dateTime\": [\n        {\n          \"name\": \"last_inbound_at\",\n          \"value\": \"={{ $json.last_inbound_at }}\"\n        }\n      ]\n    }\n  },\n  \"name\": \"Set - build message (template)1\",\n  \"type\": \"n8n-nodes-base.set\",\n  \"typeVersion\": 2,\n  \"position\": [560, 420]\n}\n",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1968,
+        1328
+      ],
+      "id": "9ad4c0e8-5133-446b-834d-0624bd8b6a36",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "content": "## WHAT TO CHANGE\n\n### - Version\n### - Text",
+        "height": 192,
+        "width": 192
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -4800,
+        1280
+      ],
+      "typeVersion": 1,
+      "id": "564480ab-dcac-4f9d-83d8-99cc6d958879",
+      "name": "Sticky Note2"
+    }
+  ],
+  "connections": {
+    "Set - build message (freeform)1": {
+      "main": [
+        [
+          {
+            "node": "Send Freeform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS - pick template + vars1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - send template1": {
+      "main": [
+        [
+          {
+            "node": "IF - send success?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - send success?1": {
+      "main": [
+        [
+          {
+            "node": "PG - broadcast_delivery SENT1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PG - broadcast_delivery FAIL1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - broadcast_delivery SENT1": {
+      "main": [
+        [
+          {
+            "node": "PG - set users.last_version_notified1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - set users.last_version_notified1": {
+      "main": [
+        [
+          {
+            "node": "PG - insert conversations broadcast row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - insert conversations broadcast row1": {
+      "main": [
+        [
+          {
+            "node": "Split - users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - broadcast_delivery FAIL1": {
+      "main": [
+        [
+          {
+            "node": "Split - users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron - every 30 min": {
+      "main": [
+        [
+          {
+            "node": "Set - constants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - constants": {
+      "main": [
+        [
+          {
+            "node": "PG - get users not notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - get users not notified": {
+      "main": [
+        [
+          {
+            "node": "Split - users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split - users": {
+      "main": [
+        [],
+        [
+          {
+            "node": "PG - last conversation row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - last conversation row": {
+      "main": [
+        [
+          {
+            "node": "JS - eligibility gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS - eligibility gate": {
+      "main": [
+        [
+          {
+            "node": "IF - eligible now?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - eligible now?": {
+      "main": [
+        [
+          {
+            "node": "PG - upsert broadcast_delivery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split - users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - upsert broadcast_delivery": {
+      "main": [
+        [
+          {
+            "node": "JS - TTL check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS - TTL check": {
+      "main": [
+        [
+          {
+            "node": "IF - expired?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - expired?": {
+      "main": [
+        [
+          {
+            "node": "PG - last inbound user message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PG - mark expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - mark expired": {
+      "main": [
+        []
+      ]
+    },
+    "PG - last inbound user message": {
+      "main": [
+        [
+          {
+            "node": "JS - 24h window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS - 24h window": {
+      "main": [
+        [
+          {
+            "node": "IF - window open?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - window open?": {
+      "main": [
+        [
+          {
+            "node": "Set - build message (freeform)1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "JS - pick template + vars1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Freeform": {
+      "main": [
+        [
+          {
+            "node": "IF - send success?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP - send template1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

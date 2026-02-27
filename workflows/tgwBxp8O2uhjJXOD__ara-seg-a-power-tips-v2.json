@@ -1,0 +1,906 @@
+{
+  "id": "tgwBxp8O2uhjJXOD",
+  "name": "ARA Seg A Power Tips v2",
+  "active": 0,
+  "createdAt": "2025-12-22 10:39:12.820",
+  "updatedAt": "2025-12-23 02:58:07.681",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        -224
+      ],
+      "id": "4a00ed3f-42c0-40db-846e-15e809f5022e",
+      "name": "Cron Trigger (Every 3 hours)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  id as user_id,\n  telegram_id as wa_number,\n  telegram_id as telegram_chat_id,\n  timezone,\n  preferred_language\nfrom public.users\nwhere is_active = true\n  and telegram_id is not null\n  and telegram_id ~ '^[1-9][0-9]{7,14}$';\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        128,
+        -224
+      ],
+      "id": "37c0e69b-33ea-416b-98e3-c4019da8a2aa",
+      "name": "Fetch Candidate Users"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        384,
+        -224
+      ],
+      "id": "7898a501-f533-4c42-a766-1044d0acdbe9",
+      "name": "Split In Batches"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select max(created_at) as last_inbound_user_message_at\nfrom public.conversations\nwhere user_id = $1\n  and user_message is not null;\n",
+        "options": {
+          "queryReplacement": "={{$json.user_id}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        672,
+        -208
+      ],
+      "id": "bd3ff1fc-9e31-4eb6-bd83-f6362a56340c",
+      "name": "Get Last Inbound"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const user = $node[\"Split In Batches\"].json;              // has user_id, wa_number, timezone, language\nconst inbound = $node[\"Get Last Inbound\"].json;           // has last_inbound_user_message_at\n\nconst lastInbound = inbound.last_inbound_user_message_at;\nif (!lastInbound) {\n  return { ...user, segmentA_eligible: false, reason: \"no_inbound\" };\n\n}\n\nconst tz = (user.timezone && user.timezone.trim())\n  ? user.timezone.trim()\n  : \"Asia/Kuala_Lumpur\";\n\nfunction localHour(date, timeZone) {\n  const fmt = new Intl.DateTimeFormat(\"en-GB\", {\n    timeZone, hour: \"2-digit\", hour12: false\n  });\n  return Number(fmt.format(date));\n}\n\nfunction localYMD(date, timeZone) {\n  const fmt = new Intl.DateTimeFormat(\"en-GB\", {\n    timeZone, year: \"numeric\", month: \"2-digit\", day: \"2-digit\"\n  });\n  const parts = fmt.formatToParts(date);\n  const m = Object.fromEntries(parts.map(p => [p.type, p.value]));\n  return `${m.year}-${m.month}-${m.day}`;\n}\n\nconst now = new Date();\nconst lastInboundDate = new Date(lastInbound);\n\nconst minutesSinceInbound = (now - lastInboundDate) / 60000;\nconst hoursSinceInbound = minutesSinceInbound / 60;\n\nconst isWindowOpen = hoursSinceInbound < 24;\nconst isActiveChat = minutesSinceInbound <= 60;\nconst hourLocal = localHour(now, tz);\nconst isHumaneTime = hourLocal >= 9 && hourLocal < 21;\n\nconst segmentA_eligible = isWindowOpen && !isActiveChat && isHumaneTime;\n\nreturn {\n  ...user,\n  last_inbound_user_message_at: lastInbound,\n  tz_effective: tz,\n  local_hour: hourLocal,\n  local_ymd: localYMD(now, tz),\n  hoursSinceInbound,\n  isWindowOpen,\n  isActiveChat,\n  isHumaneTime,\n  segmentA_eligible\n};\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -208
+      ],
+      "id": "dd27ce4f-aacd-4f92-bfb1-7d65c38973d7",
+      "name": "Compute Segment A Eligibility"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6ccc83b0-820b-4e8a-80df-c842528b58eb",
+              "leftValue": "={{$json.segmentA_eligible}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -240
+      ],
+      "id": "9c324017-35df-47a2-98db-54edbcb1f0bb",
+      "name": "Segment A eligible?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  max(c.created_at) as last_power_tip_at\nfrom public.conversations c\nwhere c.user_id = $1\n  and c.message_type = 'proactive_power_tip';\n",
+        "options": {
+          "queryReplacement": "={{$json.user_id}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1376,
+        -192
+      ],
+      "id": "3529f1e6-acb8-4d81-bcae-85c518f395b2",
+      "name": "Get Last Power Tip",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $json; // includes last_power_tip_at if the SQL returned it\n\n// If query returned no rows, last_power_tip_at may be undefined\nconst lastAt = user.last_power_tip_at ? new Date(user.last_power_tip_at) : null;\nconst now = new Date();\n\nfunction toLocalYMD(date, tz) {\n  return new Intl.DateTimeFormat('en-CA', {\n    timeZone: tz,\n    year: 'numeric', month: '2-digit', day: '2-digit',\n  }).format(date); // YYYY-MM-DD\n}\n\nconst tz = (user.tz_effective || user.timezone || 'Asia/Kuala_Lumpur').toString();\nconst nowLocalYMD = toLocalYMD(now, tz);\n\nlet pass_daily_cap = true;\nlet pass_12h_guard = true;\n\nif (lastAt) {\n  const lastLocalYMD = toLocalYMD(lastAt, tz);\n  pass_daily_cap = (lastLocalYMD !== nowLocalYMD);\n\n  const hoursSinceLast = (now.getTime() - lastAt.getTime()) / (1000 * 60 * 60);\n  pass_12h_guard = (hoursSinceLast >= 12);\n}\n\n// Final decision = both must pass\nconst pass_frequency = pass_daily_cap && pass_12h_guard;\n\nreturn {\n  ...user,\n  pass_daily_cap,\n  pass_12h_guard,\n  pass_frequency,\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        -160
+      ],
+      "id": "2279b1b8-798c-4a54-8b86-ddbe4fcdb990",
+      "name": "Frequency Guards (1/day + 12h)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a93856d5-6c0a-42c4-aea6-9772fab2a303",
+              "leftValue": "={{$json.pass_frequency}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2000,
+        -160
+      ],
+      "id": "925db76d-723c-4880-953a-5750361716d5",
+      "name": "Pass frequency?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "500f9330-573d-4627-91df-2adf2fa4a185",
+              "leftValue": "={{$json.tip_id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3104,
+        -240
+      ],
+      "id": "ffd6f819-269f-496f-b62a-7529ae4fbc35",
+      "name": "Tip found?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select *\nfrom public.ara_power_tips\nwhere status = 'active'\norder by random()\nlimit 1;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3280,
+        -160
+      ],
+      "id": "e8e2d3fd-5a69-44fb-ad04-17327953521c",
+      "name": "Select Fallback Tip"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7abf1d2b-7656-4673-b6d4-f49878cc77c6",
+              "leftValue": "={{$json.tip_id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3760,
+        -176
+      ],
+      "id": "99551f3e-2306-4aa0-89d3-aa09a0792329",
+      "name": "Tip found?1"
+    },
+    {
+      "parameters": {
+        "from": "+601125911400",
+        "to": "={{ $json.telegram_chat_id }}",
+        "toWhatsapp": true,
+        "message": "={{$json.final_message}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        4208,
+        -240
+      ],
+      "id": "374b5c16-b057-4718-951c-d2d75e3b490e",
+      "name": "Send WhatsApp (Free-form)"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "conversations",
+          "mode": "list",
+          "cachedResultName": "conversations"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "is_complete": false,
+            "onboarding_sent": false,
+            "pending_action_resolved": false,
+            "telegram_chat_id": "={{ $('Build Message').item.json.wa_number }}",
+            "user_id": "={{ $('Build Message').item.json.user_id }}",
+            "message_id": "={{ $json.sid }}",
+            "assistant_response": "={{ $json.body }}",
+            "created_at": "={{ $now }}",
+            "message_type": "proactive_power_tip",
+            "message_data": "={{ {\n  selected_tip_id: $node[\"Build Message\"].json.tip_id,\n  selected_tip_category: $node[\"Build Message\"].json.category,\n  context_tags: $node[\"Build Message\"].json.context_tags\n} }}\n"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_chat_id",
+              "displayName": "telegram_chat_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_type",
+              "displayName": "message_type",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_message",
+              "displayName": "user_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_data",
+              "displayName": "message_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assistant_response",
+              "displayName": "assistant_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "context_summary",
+              "displayName": "context_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emotion_detected",
+              "displayName": "emotion_detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action_taken",
+              "displayName": "action_taken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_complete",
+              "displayName": "is_complete",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "topics_discussed",
+              "displayName": "topics_discussed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "people_mentioned",
+              "displayName": "people_mentioned",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "onboarding_sent",
+              "displayName": "onboarding_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pending_action_type",
+              "displayName": "pending_action_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pending_action_payload",
+              "displayName": "pending_action_payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pending_action_resolved",
+              "displayName": "pending_action_resolved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4432,
+        -80
+      ],
+      "id": "5f3fbd8b-db2c-47ef-8d3d-3c119efbda0f",
+      "name": "Log to conversations"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Message (single item expected)\nconst item = $input.first().json;\n\n// Tip content (from Select Best Tip / Fallback Tip)\nconst tip = (item.tip_body || \"\").trim();\n\n// Basic user personalization\nconst name = \"Joe\"; // or item.user_name if you have it later\nconst lang = (item.preferred_language || \"en\").toLowerCase();\nconst localHour = Number(item.local_hour ?? 12);\n\n// Time-based opener (simple + warm)\nlet opener = \"Hey Joe 😊 here’s a quick power tip:\";\nif (localHour >= 22 || localHour <= 5) opener = \"Hey Joe 😊 quick one before you rest:\";\nelse if (localHour >= 6 && localHour <= 11) opener = \"Good morning Joe 😊 quick power tip:\";\nelse if (localHour >= 12 && localHour <= 17) opener = \"Hey Joe 😊 quick power tip for your day:\";\nelse if (localHour >= 18 && localHour <= 21) opener = \"Good evening Joe 😊 quick power tip:\";\n\n// If tip is missing, keep it safe (don’t send blank to Twilio)\nconst safeTip = tip || \"Want a useful shortcut? You can say: “Summarise our last chat.” I’ll recap key points + decisions.\";\n\n// Optional context-aware closer based on tags\nconst tags = Array.isArray(item.context_tags) ? item.context_tags.map(t => String(t).toLowerCase()) : [];\nlet closer = \"If you want, I can suggest the next best command for you too.\";\nif (tags.includes(\"summary\") || tags.includes(\"recap\")) {\n  closer = 'Try it anytime by saying: “Summarise our last chat.”';\n}\n\n// Final message\nconst final = `${opener}\\n\\n💡 ${safeTip}\\n\\n${closer}`;\n\n// IMPORTANT: provide the field Twilio expects\nitem.message_body = final;\nitem.final_message = final;\n\n// Also ensure we use the right channel label for logging (your preference)\nitem.outgoing_message_type = \"power_tips\";\n\nreturn [{ json: item }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3984,
+        -240
+      ],
+      "id": "6e45148e-0b50-44e3-9229-3a2b1ceeb10a",
+      "name": "Build Message"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  created_at,\n  message_type,\n  user_message,\n  assistant_response\nfrom public.conversations\nwhere user_id = $1\n  and message_type = 'whatsapp'\norder by created_at desc\nlimit 10;\n",
+        "options": {
+          "queryReplacement": "={{$json.user_id}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2208,
+        -256
+      ],
+      "id": "f562a533-4b61-4cb4-920e-7fb7aa199653",
+      "name": "Get Recent Context",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Context Tags (Run Once for All Items)\n\n// 1) Grab identity / user info from an upstream node that still has it\n// Change \"Pass frequency?\" to whichever node still contains user_id/wa_number in your run.\nconst base = $node[\"Pass frequency?\"].json;\n\n// 2) Grab the 10 recent conversation rows from input\nconst rows = $input.all().map(i => i.json);\n\n// Ensure newest -> oldest (optional, your SQL already orders desc)\nrows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\n\n// 3) Build a compact text block for LLM later (optional but useful)\nconst context_text = rows.map(r => {\n  const t = r.created_at ? new Date(r.created_at).toISOString() : \"\";\n  const u = (r.user_message || \"\").trim();\n  const a = (r.assistant_response || \"\").trim();\n  return `(${t}) U: ${u}\\nA: ${a}`;\n}).join(\"\\n\\n\");\n\n// 4) (Optional) lightweight tags — you can improve later\nconst tags = [];\nconst blob = (rows.map(r => `${r.user_message || \"\"}\\n${r.assistant_response || \"\"}`).join(\"\\n\")).toLowerCase();\nif (blob.includes(\"remind\")) tags.push(\"reminders\");\nif (blob.includes(\"pay\") || blob.includes(\"pricing\") || blob.includes(\"price\")) tags.push(\"pricing\");\nif (blob.includes(\"call\")) tags.push(\"calls\");\n\nreturn [\n  {\n    json: {\n      ...base,                 // ✅ restores user_id, wa_number, tz, etc\n      recent_context: rows,     // ✅ full 10-row array\n      context_text,             // ✅ optional\n      context_tags: tags        // ✅ optional\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        -256
+      ],
+      "id": "db3794a6-969f-411b-a9fa-f8b86e950433",
+      "name": "Build Context Tags"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "with tags as (\n  select coalesce(array_agg(value), '{}'::text[]) as arr\n  from jsonb_array_elements_text($1::jsonb) as value\n)\nselect\n  t.*\nfrom public.ara_power_tips t\ncross join tags\nwhere t.status = 'active'\n  and (\n    t.requires_context = false\n    or t.context_tags && tags.arr\n  )\norder by\n  (t.context_tags && tags.arr) desc,\n  cardinality(\n    array(\n      select unnest(t.context_tags)\n      intersect\n      select unnest(tags.arr)\n    )\n  ) desc,\n  t.created_at desc\nlimit 1;\n",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.context_tags || []) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2656,
+        -192
+      ],
+      "id": "0ab7ada5-5bdf-4a2b-96da-abec641dd4a6",
+      "name": "Select Best Tip (ranked)",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1584,
+        -240
+      ],
+      "id": "b3324c1a-ab56-4fd7-a934-0b0e9def7041",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2896,
+        -256
+      ],
+      "id": "3ba9169c-e77e-4237-95e2-7617356feef4",
+      "name": "Merge Tip + User Context"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3536,
+        -160
+      ],
+      "id": "fd4384e3-9760-4470-9f22-bc7775bfa3d9",
+      "name": "Merge Fallback Tip + User Context"
+    }
+  ],
+  "connections": {
+    "Cron Trigger (Every 3 hours)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Candidate Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Candidate Users": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get Last Inbound",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Inbound": {
+      "main": [
+        [
+          {
+            "node": "Compute Segment A Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Segment A Eligibility": {
+      "main": [
+        [
+          {
+            "node": "Segment A eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Segment A eligible?": {
+      "main": [
+        [
+          {
+            "node": "Get Last Power Tip",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Power Tip": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Frequency Guards (1/day + 12h)": {
+      "main": [
+        [
+          {
+            "node": "Pass frequency?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pass frequency?": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tip found?": {
+      "main": [
+        [
+          {
+            "node": "Build Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Select Fallback Tip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Fallback Tip": {
+      "main": [
+        [
+          {
+            "node": "Merge Fallback Tip + User Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Tip found?1": {
+      "main": [
+        [
+          {
+            "node": "Build Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp (Free-form)": {
+      "main": [
+        [
+          {
+            "node": "Log to conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp (Free-form)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to conversations": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Context": {
+      "main": [
+        [
+          {
+            "node": "Build Context Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context Tags": {
+      "main": [
+        [
+          {
+            "node": "Select Best Tip (ranked)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Tip + User Context",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Fallback Tip + User Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Best Tip (ranked)": {
+      "main": [
+        [
+          {
+            "node": "Merge Tip + User Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Frequency Guards (1/day + 12h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Tip + User Context": {
+      "main": [
+        [
+          {
+            "node": "Tip found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Fallback Tip + User Context": {
+      "main": [
+        [
+          {
+            "node": "Tip found?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

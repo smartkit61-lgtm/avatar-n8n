@@ -1,0 +1,139 @@
+{
+  "id": "JJd9vcviYfYxTIxq",
+  "name": ">>Update User - Smart",
+  "active": 0,
+  "createdAt": "2025-12-14 05:30:44.382",
+  "updatedAt": "2025-12-14 05:30:44.382",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "63d4d2b3-407d-4ebe-9ddf-9645d68d5495",
+      "name": "When chat message received",
+      "webhookId": "8b297f6a-974f-429f-b51e-9d6cf2f21c78"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "users",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "first_name",
+              "keyValue": "={{ $json.chatInput }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "955c3657-a474-41b2-ac2d-240a9b8c137f",
+      "name": "Get a row"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "users",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "first_name",
+              "condition": "eq",
+              "keyValue": "={{ $json.first_name }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "plan_type",
+              "fieldValue": "smart"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "4e69d777-0752-438f-ad7f-56ce5d1a7a6d",
+      "name": "Update a row"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_id }}",
+        "text": "Tahniah! Anda telah upgrade ke ARA Smart 😊",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "c2f2f4c8-83e4-46dd-8aee-19d639d51ef0",
+      "name": "Send a text message",
+      "webhookId": "60910433-8453-4155-b7c7-f6b85df0967c"
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": null
+}

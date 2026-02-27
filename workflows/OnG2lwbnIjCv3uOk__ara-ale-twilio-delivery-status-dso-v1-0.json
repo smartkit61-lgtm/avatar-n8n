@@ -1,0 +1,237 @@
+{
+  "id": "OnG2lwbnIjCv3uOk",
+  "name": "ARA | ALE | Twilio Delivery Status (DSO) | v1.0",
+  "active": 0,
+  "createdAt": "2026-01-11 06:59:41.027",
+  "updatedAt": "2026-01-25 14:33:54.201",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "twilio-status",
+        "options": {}
+      },
+      "id": "ac2ee2d7-19a9-4b35-bcad-5a4a70301ea2",
+      "name": "IN | Twilio Status Callback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        768
+      ],
+      "webhookId": "e706c525-e025-42f7-a768-b58cfeafec3f"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize Twilio delivery status callback\nconst b = $json || {};\n\n// helper: first non-empty key (stringified + trimmed)\nconst pick = (...keys) => {\n  for (const k of keys) {\n    const v = b?.[k];\n    if (v !== undefined && v !== null && `${v}`.trim() !== \"\") return `${v}`.trim();\n  }\n  return \"\";\n};\n\nconst sid = pick(\"MessageSid\", \"SmsMessageSid\", \"message_sid\", \"sid\");\nconst status = pick(\"MessageStatus\", \"SmsStatus\", \"message_status\", \"status\").toLowerCase();\nconst errorCodeRaw = pick(\"ErrorCode\", \"error_code\");\nconst errorMessage = pick(\"ErrorMessage\", \"error_message\");\nconst to = pick(\"To\", \"to\");\nconst from = pick(\"From\", \"from\");\n\n// ✅ PATCH 1: make channel_user_id robust even if To is missing/empty\n// - Twilio sends To like \"whatsapp:+6010....\"\n// - If missing, keep it null (don't throw)\nconst toE164 = to ? to.replace(/^whatsapp:/i, \"\").trim() : \"\";\nconst channelUserId = toE164 ? toE164.replace(/^\\+/, \"\") : null;\n\nconst isFailure = [\"failed\", \"undelivered\"].includes(status) || !!errorCodeRaw;\nconst error_code = errorCodeRaw ? Number(errorCodeRaw) : null;\n\nlet signature = `TWILIO_STATUS_${(status || \"unknown\").toUpperCase()}`;\nlet severity = \"low\";\nlet event_type = \"DELIVERY_STATUS\";\nlet recommended_fix = null;\n\nif (isFailure) {\n  severity = \"high\";\n  event_type = \"DELIVERY_ANOMALY\";\n\n  if (error_code === 63016) {\n    signature = \"TWILIO_63016_OUTSIDE_24H_WINDOW\";\n    recommended_fix = \"WhatsApp freeform blocked: outside 24h window. Use approved template or wait for inbound.\";\n  } else if (error_code) {\n    signature = `TWILIO_ERR_${error_code}`;\n  }\n}\n\n// ✅ PATCH 2: attach workflow + node (source) so DB insert doesn't need $node.name\n// Pick ONE source node label and keep it canonical:\nconst workflow = $workflow.name;\nconst node = \"IN | Twilio Status Callback\"; // or \"NORM | Twilio Status Payload\" if you prefer\n\nreturn [\n  {\n    json: {\n      sid,\n      status,\n      error_code,\n      error_message: errorMessage || null,\n      channel: \"whatsapp\",\n      channel_user_id: channelUserId,\n      event_type,\n      signature,\n      severity,\n      workflow, // ✅ new\n      node,     // ✅ new\n      message_direction: \"outbound\",\n      context_source: \"twilio_status_callback\",\n      track_immunity: isFailure,\n      recommended_fix,\n      snapshot: {\n        twilio: { sid, status, error_code, error_message: errorMessage || null, to, from }\n      }\n    }\n  }\n];\n"
+      },
+      "id": "93aa53ca-8355-4d5e-be74-69ae4a67efd4",
+      "name": "NORM | Twilio Status Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.ale_events (\n  channel_user_id, channel,\n  event_type, signature, severity,\n  workflow, node,\n  message_direction, context_source,\n  snapshot\n) values (\n  $1, 'whatsapp',\n  $2, $3, $4,\n  $5, $6,\n  'outbound', $7,\n  $8::jsonb\n);",
+        "options": {
+          "queryReplacement": "={{ $json.channel_user_id }}, {{ $json.event_type }}, {{ $json.signature }}, {{ $json.severity }}, {{ $workflow.name }}, {{ $json.node }}, {{ $json.context_source }}, {{ JSON.stringify($json.snapshot) }}"
+        }
+      },
+      "id": "1cbfcb43-11e3-4318-9957-fe79c0849f52",
+      "name": "DB | Insert ALE Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ String($json.track_immunity).toLowerCase() === 'true' }}",
+              "value2": "={{ true }}"
+            }
+          ]
+        }
+      },
+      "id": "ed88dfbf-e529-45e1-8792-7c439da6213b",
+      "name": "DECIDE | Track Immunity?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.ale_known_anomalies\n(signature, first_seen_at, last_seen_at, count, status, recommended_fix)\nvalues ($1, now(), now(), 1, 'open', $2)\non conflict (signature)\ndo update set\n  last_seen_at = now(),\n  count = public.ale_known_anomalies.count + 1,\n  recommended_fix = coalesce(public.ale_known_anomalies.recommended_fix, excluded.recommended_fix);",
+        "options": {}
+      },
+      "id": "d5036681-4fb5-4f81-b51c-78f18d35d31d",
+      "name": "DB | Upsert ALE Known Anomalies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize Twilio delivery status callback (Webhook payload)\n// Expect shape: { headers, params, query, body, webhookUrl, executionMode }\nconst root = $json || {};\nconst b = root.body || root || {};\n\n// helper: first non-empty key (stringified + trimmed)\nconst pick = (...keys) => {\n  for (const k of keys) {\n    const v = b?.[k] ?? root?.[k];\n    if (v !== undefined && v !== null && `${v}`.trim() !== \"\") return `${v}`.trim();\n  }\n  return \"\";\n};\n\n// Twilio commonly sends: MessageSid, MessageStatus, ErrorCode, To, From\nconst sid = pick(\"MessageSid\", \"SmsSid\", \"SmsMessageSid\", \"sid\", \"message_sid\");\nconst statusRaw = pick(\"MessageStatus\", \"SmsStatus\", \"status\", \"message_status\");\nconst status = (statusRaw || \"\").toLowerCase().trim();\n\nconst to = pick(\"To\", \"to\");\nconst from = pick(\"From\", \"from\");\n\nconst errorCodeRaw = pick(\"ErrorCode\", \"error_code\");\nconst errorMessage = pick(\"ErrorMessage\", \"error_message\");\n\n// normalize error_code to Number|null\nlet error_code = null;\nif (errorCodeRaw && errorCodeRaw !== \"0\") {\n  const n = Number(errorCodeRaw);\n  error_code = Number.isFinite(n) ? n : null;\n}\n\n// Channel user id derived from \"To\" (whatsapp:+E164)\nconst toE164 = to ? to.replace(/^whatsapp:/i, \"\").trim() : \"\";\nconst channel_user_id = toE164 ? toE164.replace(/^\\+/, \"\") : null;\n\n// Detect anomaly types\nconst isFailureStatus = [\"failed\", \"undelivered\"].includes(status);\nconst isOutsideWindow = error_code === 63016;\n\n// Event classification\nlet signature = `TWILIO_STATUS_${(status || \"unknown\").toUpperCase()}`;\nlet severity = \"low\";\nlet event_type = \"DELIVERY_STATUS\";\nlet recommended_fix = null;\n\nif (isFailureStatus || error_code) {\n  event_type = \"DELIVERY_ANOMALY\";\n  severity = \"high\";\n\n  if (isOutsideWindow) {\n    signature = \"TWILIO_63016_OUTSIDE_24H_WINDOW\";\n    recommended_fix =\n      \"WhatsApp freeform blocked (outside 24h window). Use approved template or wait for inbound message to reopen 24h window.\";\n  } else if (error_code) {\n    signature = `TWILIO_ERR_${error_code}`;\n  }\n}\n\n// ✅ KEY BEHAVIOR: only “track_immunity” on FINAL failure callback\n// Twilio may send: sent -> undelivered (63016). We only track on undelivered/failed.\nconst track_immunity = isOutsideWindow && isFailureStatus;\n\n// Canonical source labels\nconst workflow = $workflow.name;\nconst node = \"NORM | Twilio Status Payload\"; // keep canonical & stable\n\nreturn [\n  {\n    json: {\n      sid,\n      status,\n      error_code,\n      error_message: errorMessage || null,\n\n      channel: \"whatsapp\",\n      channel_user_id,\n\n      event_type,\n      signature,\n      severity,\n\n      workflow,\n      node,\n\n      message_direction: \"outbound\",\n      context_source: \"twilio_status_callback\",\n\n      track_immunity,\n      recommended_fix,\n\n      snapshot: {\n        twilio: {\n          sid,\n          status,\n          error_code,\n          error_message: errorMessage || null,\n          to,\n          from,\n        },\n        raw_body: b, // keep raw for debugging (optional but useful)\n      },\n    },\n  },\n];\n"
+      },
+      "id": "9f05f3b1-3792-40b6-916c-406f39dad8d7",
+      "name": "NORM | Twilio Status Payload1",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.ale_events (\n  channel_user_id, channel,\n  event_type, signature, severity,\n  workflow, node,\n  message_direction, context_source,\n  snapshot\n) values (\n  $1, 'whatsapp',\n  $2, $3, $4,\n  $5, $6,\n  'outbound', $7,\n  $8::jsonb\n);",
+        "options": {
+          "queryReplacement": "={{ \n  $json.channel_user_id\n}}, {{\n  $json.event_type\n}}, {{\n  $json.signature\n}}, {{\n  $json.severity\n}}, {{\n  $json.workflow\n}}, {{\n  $json.node\n}}, {{\n  $json.context_source\n}}, {{\n  JSON.stringify($json.snapshot)\n}}"
+        }
+      },
+      "id": "2b2b2c31-64c0-4463-a4a4-80d2fa4706be",
+      "name": "DB | Insert ALE Event1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.track_immunity === true }}",
+              "value2": "={{ true }}"
+            }
+          ]
+        }
+      },
+      "id": "e7ebe617-c4ff-462c-b840-3f684253eb83",
+      "name": "DECIDE | Track Immunity?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.ale_known_anomalies\n(signature, first_seen_at, last_seen_at, count, status, recommended_fix)\nvalues ($1, now(), now(), 1, 'open', $2)\non conflict (signature)\ndo update set\n  last_seen_at = now(),\n  count = public.ale_known_anomalies.count + 1,\n  recommended_fix = coalesce(public.ale_known_anomalies.recommended_fix, excluded.recommended_fix);",
+        "options": {
+          "queryReplacement": "={{$json.signature || 'TWILIO_STATUS_UNKNOWN'}},{{$json.recommended_fix}}"
+        }
+      },
+      "id": "92c3a094-3f78-426d-a176-344fbcdc23c9",
+      "name": "DB | Upsert ALE Known Anomalies1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        448
+      ]
+    }
+  ],
+  "connections": {
+    "IN | Twilio Status Callback": {
+      "main": [
+        [
+          {
+            "node": "NORM | Twilio Status Payload1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NORM | Twilio Status Payload": {
+      "main": [
+        [
+          {
+            "node": "DB | Insert ALE Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DECIDE | Track Immunity?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB | Insert ALE Event": {
+      "main": [
+        []
+      ]
+    },
+    "DECIDE | Track Immunity?": {
+      "main": [
+        [
+          {
+            "node": "DB | Upsert ALE Known Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NORM | Twilio Status Payload1": {
+      "main": [
+        [
+          {
+            "node": "DB | Insert ALE Event1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DECIDE | Track Immunity?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DECIDE | Track Immunity?1": {
+      "main": [
+        [
+          {
+            "node": "DB | Upsert ALE Known Anomalies1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

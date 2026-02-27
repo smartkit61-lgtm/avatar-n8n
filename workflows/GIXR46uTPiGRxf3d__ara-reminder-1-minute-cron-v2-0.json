@@ -1,0 +1,853 @@
+{
+  "id": "GIXR46uTPiGRxf3d",
+  "name": "ARA | Reminder | 1-minute cron | v2.0",
+  "active": 1,
+  "createdAt": "2025-12-17 09:54:18.444",
+  "updatedAt": "2026-01-11 00:04:42.170",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "reminders",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_sent",
+              "condition": "eq",
+              "keyValue": "false"
+            },
+            {
+              "keyName": "reminder_time",
+              "condition": "=gte",
+              "keyValue": "={{ $('Calculate Time Window').item.json.start_time }}"
+            },
+            {
+              "keyName": "reminder_time",
+              "condition": "=lte",
+              "keyValue": "={{ $('Calculate Time Window').item.json.end_time }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -224
+      ],
+      "id": "45cfe8f2-01d1-4618-91f1-c0d2e3a1f815",
+      "name": "Get Pending Reminders"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -224,
+        -224
+      ],
+      "id": "b9aa227a-cdd2-4d16-94e5-1db929d6a625",
+      "name": "Process Each Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "users",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -352
+      ],
+      "id": "d1da3bda-9783-445a-a6de-e6c541c3d4fb",
+      "name": "Get User for Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "reminders",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Compute Delivery Type').item.json.reminder_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "is_sent",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2992,
+        -320
+      ],
+      "id": "604ffa8b-3211-4e3a-b05c-21c10e73bc7c",
+      "name": "Mark Reminder Sent"
+    },
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "telegram_chat_id",
+              "fieldValue": "={{ $('Compute Delivery Type').item.json.whatsapp_to }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "reminder"
+            },
+            {
+              "fieldId": "assistant_response",
+              "fieldValue": "={{ $('Send Reminder1').item.json.body }}"
+            },
+            {
+              "fieldId": "session_id",
+              "fieldValue": "reminder_{{ Date.now() }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ Date.now() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3216,
+        -320
+      ],
+      "id": "4b87dd2a-9843-408a-b96b-1bda509a4bf0",
+      "name": "Log Reminder Conversation"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({\n  reminder_text: $json.reminder_text,\n  user_name: $json.display_name,\n  language_code: (\n    $json.delivery_type === 'template'\n      ? ($json.template_lang_used || 'en')\n      : ($json.preferred_language || 'en')\n  )\n}) }}",
+        "options": {
+          "systemMessage": "=You are ARA’s Reminder Description Generator for WhatsApp.\n\nYou will receive JSON input with:\n\nreminder_text: a short action phrase stored in the database (e.g. “call Aishah”, “follow up Aishah pasal loan”, “medical check up dengan doktor”, “bayar TNB bill”)\n\nuser_name: the user’s name (e.g. “Joeherry”; you do NOT need to repeat it)\n\nlanguage_code: one of \"en\", \"ms\", \"zh\", \"id\", \"ta\"\n\nYour output will be inserted into this Twilio-approved template (or its translated version) as {{2}}:\n\nEnglish (en):\n\nHi {{1}}, this is a quick reminder for {{2}}.\n\nIf you need to make any changes, just let me know anytime. I’m here to help!\n\n\nMalay (ms):\n\nHi {{1}}, ini peringatan ringkas untuk {{2}}.\n\nKalau perlu ubah apa-apa, beritahu saja bila-bila masa. Saya sedia bantu!\n\n\n\nChinese (zh):\n\nHi {{1}}，这是关于 {{2}} 的一个简短提醒。\n\n如果你需要做任何更改，随时告诉我。我随时可以帮你！\n\nIndonesian (id):\n\nHi {{1}}, ini pengingat singkat untuk {{2}}.\n\nKalau kamu perlu mengubah sesuatu, tinggal beri tahu kapan saja. Aku siap membantu!\n\n\nTamil (ta):\n\nஹை {{1}}, இது {{2}} பற்றிய ஒரு சுருக்கமான நினைவூட்டல்.\n\nஏதாவது மாற்றம் செய்யணும்னா, எப்போதுமே சொல்லுங்க. நான் உதவ தயாரா இருக்கேன்!\n\n\nYou must NOT output the full template.\nYou must ONLY output the content that replaces {{2}}.\n\n1. ACTION PRESERVATION (VERY IMPORTANT)\n\nreminder_text is authoritative.\n\nDo NOT change the meaning of the action.\n\nDo NOT convert:\n\n“call Aishah” → “follow up Aishah”\n\n“follow up” → “check in”\n\n“bayar bil” → “settle payment”\n\nYou may rephrase slightly to fit grammar, e.g.:\n\n“call Aishah” → “your call with Aishah”\n\n“medical check up dengan doktor” → “medical check up dengan doktor”\n\nBut the core action must remain EXACT in meaning.\n\n2. LANGUAGE RULES\n\nUse the language from language_code:\n\n\"en\" → English\n\n\"ms\" → Bahasa Malaysia (rojak allowed if reminder_text is rojak)\n\n\"zh\" → Chinese\n\n\"id\" → Indonesian\n\n\"ta\" → Tamil\n\nDo NOT switch to a different language.\n\nDo NOT translate reminder_text; keep rojak words exactly.\n\n3. STRUCTURE OF YOUR OUTPUT (THIS IS {{2}})\n\nYour output must be one short phrase or sentence, containing:\n\nA description of the reminder action, using the exact meaning of reminder_text.\n\nOptionally one short, situation-appropriate supportive phrase.\n\nExactly ONE emoji at the end.\n\nThe reminder is for now.\nDo NOT say “in 5 minutes”, “tomorrow”, “later”, etc.\n\nExamples of allowed shapes (in English; you MUST respond in the language of language_code):\n\nyour call with Aishah — you’ve got this 💪\n\nmedical check up dengan doktor. Semoga semuanya dipermudahkan ❤️\n\nbayar TNB bill untuk rumah, good job staying organised ✅\n\n4. SUPPORTIVE PHRASE LOGIC (OPTIONAL)\n\nBased on reminder_text, you may add a short encouragement:\n\ninterviews / meetings / exams / presentations\n→ “you’ve got this”, “all the best”\n\nmedical / hospital / clinic / checkup\n→ “hope everything goes smoothly”, “semoga semuanya dipermudahkan”\n\nfamily / loved ones / kids / parents\n→ “hope it goes well with your loved ones”\n\npayments / bills / admin / errands\n→ “good job staying organised”\n\nself-care / exercise / spiritual routines\n→ “good job taking care of yourself”\n\nif unsure\n→ use a neutral “all the best” in the correct language\n\nKeep supportive phrase short.\n\n5. EMOJI RULE\n\nUse exactly ONE emoji.\n\nPlace it at the very end of your output.\n\nChoose an emoji appropriate to the situation (📱, 💪, ❤️, 💚, 🌟, 💡, etc.).\n\n6. OUTPUT FORMAT\n\nOutput ONLY the string that will replace {{2}}.\n\nNO JSON.\n\nNO template text.\n\nNO “Hi…”.\n\nNO explanations.\n\nMax length: ~1 short sentence (you may use “—” or “. ” inside)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        -352
+      ],
+      "id": "139f8e1c-6c31-4944-9b8b-becf069758b3",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        -128
+      ],
+      "id": "4e358ce1-d119-4e0d-8c9a-055fa198b066",
+      "name": "OpenAI Chat Model1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1-Minute Reminder Window Generator\n// ----------------------------------\n// This workflow should be triggered every 1 minute by CRON (* * * * *)\n\n// Current time (UTC or your server timezone — n8n uses server timezone)\nconst now = new Date();\n\n// Start = now (exact minute)\nconst startTime = new Date(now);\nstartTime.setSeconds(0, 0);  // e.g., 14:23:00.000\n\n// End = +1 minute\nconst endTime = new Date(startTime);\nendTime.setMinutes(endTime.getMinutes() + 1); // e.g., 14:24:00.000\n\n// Debug info\nconsole.log(\"⏱️ 1-Min Window Mode\");\nconsole.log(\"Fetching reminders from\", startTime.toLocaleString(), \"to\", endTime.toLocaleString());\n\n// Output to next node (Supabase)\nreturn [{\n  json: {\n    mode: \"1-minute\",\n    current_time: now.toISOString(),\n    start_time: startTime.toISOString(),\n    end_time: endTime.toISOString(),\n    time_window_minutes: 1,\n    debug_info: {\n      readable_window: startTime.toLocaleTimeString() + \" → \" + endTime.toLocaleTimeString(),\n      server_timezone_offset_minutes: now.getTimezoneOffset()\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        -224
+      ],
+      "id": "5ffc4d39-9b5f-4986-89c2-22389ca6057c",
+      "name": "Calculate Time Window"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": "=1"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        -224
+      ],
+      "id": "967a45c2-9fe8-463f-b888-cea084e1c52c",
+      "name": "1-Minute Reminder Check"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Process Each Reminder').item.json.user_id }}"
+            },
+            {
+              "keyName": "message_type",
+              "condition": "eq",
+              "keyValue": "whatsapp"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -352
+      ],
+      "id": "185cd3b0-2f9b-43e9-9bb1-bfbda9f037fe",
+      "name": "Get Last Inbound (24h Window)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// B1 Compute Delivery Type (NO assumptions, no pairing dependency)\n// Uses:\n// - Process Each Reminder (the reminder row)\n// - Get User for Reminder (single user row)\n// - Get Last Inbound (24h Window) (many conversation rows)\n\nconst now = new Date();\n\n// 1) Get reminder + user safely (single objects)\nconst reminder = $node[\"Process Each Reminder\"].json || {};\nconst user = $node[\"Get User for Reminder\"].json || {};\n\n// 2) Collect inbound rows (can be many)\nlet rows = [];\ntry {\n  rows = $items(\"Get Last Inbound (24h Window)\", 0).map(i => i.json);\n} catch (e) {\n  rows = [];\n}\n\n// 3) Filter only inbound WhatsApp messages that truly count as inbound “user” messages\nrows = rows.filter(r => {\n  const msg = (r.user_message ?? \"\").toString().trim();\n  return r.message_type === \"whatsapp\" && msg.length > 0 && r.created_at;\n});\n\n// 4) Find latest inbound time\nlet lastInboundAt = null;\nif (rows.length > 0) {\n  rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());\n  lastInboundAt = rows[0].created_at;\n}\n\n// 5) Compute hours since last inbound\nlet hoursSince = null;\nif (lastInboundAt) {\n  hoursSince = (now.getTime() - new Date(lastInboundAt).getTime()) / (1000 * 60 * 60);\n}\n\n// 6) Decide delivery type\nconst within24h = (hoursSince !== null && hoursSince <= 24);\nconst deliveryType = within24h ? \"free_form\" : \"template\";\n\n// 7) Output ONE clean item that downstream nodes use (NO cross-node .item calls)\nconst whatsappTo = user.telegram_id; // you said reuse telegram id\n\nconst displayName =\n  (user.preferred_name || \"\").trim() ||\n  (user.first_name || \"\").trim() ||\n  (user.telegram_username || \"\").trim() ||\n  \"there\";\n\nconst preferredLanguage = (user.preferred_language || \"en\").toString().toLowerCase();\n\nreturn [{\n  json: {\n    // reminder\n    reminder_id: reminder.id || null,\n    reminder_text: reminder.reminder_text || \"\",\n    reminder_time: reminder.reminder_time || null,\n\n    // user\n    user_id: user.id || reminder.user_id || null,\n    whatsapp_to: whatsappTo,\n    display_name: displayName,\n    preferred_language: preferredLanguage,\n\n    // window decision\n    b1_now: now.toISOString(),\n    last_inbound_at: lastInboundAt ? new Date(lastInboundAt).toISOString() : null,\n    hours_since_last_inbound: hoursSince,\n    within_24h: within24h,\n    delivery_type: deliveryType,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -352
+      ],
+      "id": "a5c64d50-6367-4b77-bea9-ce20a8f79a38",
+      "name": "Compute Delivery Type"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7976a168-9c0f-4186-ae3d-145e4831fe73",
+              "leftValue": "={{ $json.delivery_type }}",
+              "rightValue": "free_form",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        -352
+      ],
+      "id": "421d7da6-ea45-444e-af2f-7c9abe951933",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const clean = (v) => (typeof v === 'string' ? v.trim() : '');\n\nconst user = $('Get User for Reminder').first()?.json || {};\n\nconst langRaw = (user.preferred_language || 'en').toString().toLowerCase();\nconst allowed = ['en', 'ms', 'zh', 'id', 'ta'];\nconst lang = allowed.includes(langRaw) ? langRaw : 'en';\n\nconst preferredName = clean(user.preferred_name);\nconst firstName = clean(user.first_name);\nconst handle = clean(user.telegram_username);\nconst name = preferredName || firstName || handle || 'there';\n\nconst reminderPart = clean($('AI Agent1').first()?.json?.output);\nif (!reminderPart) throw new Error('Missing AI Agent1 output for free-form reminder.');\n\nconst wrappers = {\n  en: (n, r) => `Hi ${n}, just a quick reminder: ${r}\\n\\nIf you need anything else, just tell me anytime. I’m here to help!`,\n  ms: (n, r) => `Hi ${n}, ini peringatan ringkas: ${r}\\n\\nKalau perlu apa-apa lagi, bagitau je ye. Saya sedia bantu!`,\n  zh: (n, r) => `Hi ${n}，小小提醒一下：${r}\\n\\n如果还需要其他帮助，随时告诉我。我随时可以帮你!`,\n  id: (n, r) => `Hi ${n}, ini pengingat singkat: ${r}\\n\\nKalau masih perlu apa pun, bilang saja ya. Aku siap bantu!`,\n  ta: (n, r) => `ஹை ${n}, ஒரு சின்ன நினைவூட்டல்: ${r}\\n\\nஇன்னும் ஏதேனும் உதவி தேவையெனில், எப்போது வேண்டுமானாலும் சொல்லுங்கள். நான் உங்களுக்காக இங்கே இருக்கிறேன்!`,\n};\n\nconst body = (wrappers[lang] || wrappers.en)(name, reminderPart);\n\nreturn [\n  {\n    json: {\n      ...$json,\n      language_code: lang,\n      display_name: name,\n      body_to_send: body,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -688
+      ],
+      "id": "dacfb3d1-acab-468e-8c68-0689bc1d2d90",
+      "name": "Construct Free-form Reminder Body"
+    },
+    {
+      "parameters": {
+        "from": "+601125911400",
+        "to": "={{ $('Compute Delivery Type').item.json.whatsapp_to }}",
+        "toWhatsapp": true,
+        "message": "={{ $json.body_to_send }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2288,
+        -656
+      ],
+      "id": "b48b8184-f360-4963-b28d-b629af4554cf",
+      "name": "Send Reminder1",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\n\nconst preferred = (item.preferred_language || \"en\").toString().toLowerCase();\n\nconst templateMap = {\n  en: \"HX9c5040c7ceab033aadaa39ade2aa4f33\",\n  ms: \"HX5ef80d56628bce1a584662c82869d63e\",\n  id: \"HX43c9b0564951fa93cf43084b0b881f8a\",\n  zh: \"HX8d6f7a1fdf4cbc96c9cb346cb8d45d28\",\n  ta: \"HX24422b1cf5ff286a28e795406f05bd37\",\n};\n\nconst supported = Object.keys(templateMap);\nconst templateMissing = !supported.includes(preferred);\n\n// Policy you set:\n// - if >24h (template route) and preferred language has no template => force EN + log warning\nconst templateLangUsed = templateMissing ? \"en\" : preferred;\n\nreturn [{\n  json: {\n    ...item,\n    template_missing_for_preferred_language: templateMissing,\n    template_missing_reason: templateMissing ? `No template for '${preferred}', forced 'en'.` : null,\n    template_lang_used: templateLangUsed,\n    template_sid: templateMap[templateLangUsed],\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        -288
+      ],
+      "id": "cd7b591c-869b-4e7c-b177-e2e7b1557eeb",
+      "name": "Choose Reminder Template SID"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "15215306-a71e-4330-a938-4854237fd782",
+              "leftValue": "={{ $json.template_missing_for_preferred_language }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1680,
+        -288
+      ],
+      "id": "76ee4eec-b503-400d-bd90-9c148b44ceef",
+      "name": "If template missing"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/AC_REDACTED/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+601125911400"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.to_whatsapp }}"
+            },
+            {
+              "name": "ContentSid",
+              "value": "={{ $json.template_sid }}"
+            },
+            {
+              "name": "ContentVariables",
+              "value": "={{ JSON.stringify({ \"1\": $json.display_name || \"there\", \"2\": $json.ai_output }) }}"
+            }
+          ]
+        },
+        "options": {
+          "lowercaseHeaders": true,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2128,
+        -240
+      ],
+      "id": "68f86ae9-e30b-48f9-b267-41a6abe96c4a",
+      "name": "Send Reminder Template",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0b7acf27-1c38-4766-b380-9a6b93ca4dfb",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": "201",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2320,
+        -352
+      ],
+      "id": "42fa77fd-6680-40f9-8dda-6da03babc901",
+      "name": "IF Template Send Failed?"
+    },
+    {
+      "parameters": {
+        "tableId": "system_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "log_type",
+              "fieldValue": "warning"
+            },
+            {
+              "fieldId": "component",
+              "fieldValue": "reminder_template_library"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ 'Missing reminder template for preferred_language=\\\"' + $json.preferred_language + '\\\". Forced EN template. Create ' + ($json.preferred_language || 'that') + ' template ASAP.' }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({\n  reminder_id: $json.reminder_id,\n  user_id: $json.user_id,\n  to_whatsapp: $json.to_whatsapp,\n  preferred_language: $json.preferred_language,\n  template_lang_used: $json.template_lang_used ?? null,\n  template_sid: $json.template_sid ?? null,\n  statusCode: $json.statusCode ?? null,\n  error: $json.error ?? null\n}) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        -384
+      ],
+      "id": "a314efd9-d656-4142-9430-5e3b281a28fe",
+      "name": "Create System Log"
+    },
+    {
+      "parameters": {
+        "tableId": "system_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "log_type",
+              "fieldValue": "error"
+            },
+            {
+              "fieldId": "component",
+              "fieldValue": "reminder_b1_template_send"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "Template send failed; aborted (no fallback)."
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({\n  reminder_id: $json.reminder_id,\n  user_id: $json.user_id,\n  to_whatsapp: $json.to_whatsapp,\n  preferred_language: $json.preferred_language,\n  template_lang_used: $json.template_lang_used ?? null,\n  template_sid: $json.template_sid ?? null,\n  statusCode: $json.statusCode ?? null,\n  error: $json.error ?? null\n}) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2944,
+        -944
+      ],
+      "id": "9b10bb06-5ecb-44c8-8685-1bce8f888014",
+      "name": "Create System Log1"
+    },
+    {
+      "parameters": {
+        "tableId": "usage_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $items('Get User for Reminder')[0].json.id }}"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "reminder_sent"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{  \n  {    \n    source: \"whatsapp\",    \n    type: \"reminder\",    \n    action: \"sent\",    \n    reminder_id: $json.id || null,    \n    to: $json.phone || $json.to || null,    \n    message_body: $('AI Agent1').item.json.output  \n  } \n}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3040,
+        -64
+      ],
+      "id": "3148de2e-9edc-4200-84df-824976258b81",
+      "name": "Update Usage Log"
+    },
+    {
+      "parameters": {
+        "jsCode": "const reminder = ($items(\"Process Each Reminder\")?.[0]?.json) ?? {};\nconst user = ($items(\"Get User for Reminder\")?.[0]?.json) ?? {};\nconst delivery = ($items(\"Compute Delivery Type\")?.[0]?.json) ?? {};\nconst ai = ($items(\"AI Agent1\")?.[0]?.json) ?? {};\n\nconst telegramId =\n  user.telegram_id ?? user.telegram_chat_id ?? reminder.telegram_chat_id ?? null;\n\nconst displayName =\n  user.preferred_name ??\n  user.first_name ??\n  user.telegram_username ??\n  \"there\";\n\nconst preferredLanguage =\n  user.preferred_language ?? \"en\";\n\nreturn [\n  {\n    json: {\n      // IDs\n      reminder_id: reminder.id ?? null,\n      user_id: user.id ?? reminder.user_id ?? null,\n\n      // WhatsApp routing\n      telegram_id: telegramId,\n      to_whatsapp: telegramId ? `whatsapp:${telegramId}` : null,\n\n      // user prefs\n      display_name: displayName,\n      preferred_language: preferredLanguage,\n\n      // delivery info\n      delivery_type: delivery.delivery_type ?? null,\n      hours_since_last_inbound: delivery.hours_since_last_inbound ?? null,\n      within_24h: delivery.within_24h ?? null,\n\n      // reminder data\n      reminder_text: reminder.reminder_text ?? null,\n      reminder_time: reminder.reminder_time ?? null,\n\n      // AI output\n      ai_output: ai.output ?? null,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -352
+      ],
+      "id": "5d4716fb-123f-41d0-ac15-c1d929de869b",
+      "name": "Normalize Reminder Context"
+    }
+  ],
+  "connections": {
+    "Get Pending Reminders": {
+      "main": [
+        [
+          {
+            "node": "Process Each Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Reminder": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get User for Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User for Reminder": {
+      "main": [
+        [
+          {
+            "node": "Get Last Inbound (24h Window)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Log Reminder Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Normalize Reminder Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Time Window": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1-Minute Reminder Check": {
+      "main": [
+        [
+          {
+            "node": "Calculate Time Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Inbound (24h Window)": {
+      "main": [
+        [
+          {
+            "node": "Compute Delivery Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Delivery Type": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Construct Free-form Reminder Body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Choose Reminder Template SID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construct Free-form Reminder Body": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Choose Reminder Template SID": {
+      "main": [
+        [
+          {
+            "node": "If template missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If template missing": {
+      "main": [
+        [
+          {
+            "node": "Create System Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Reminder Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder Template": {
+      "main": [
+        [
+          {
+            "node": "IF Template Send Failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Template Send Failed?": {
+      "main": [
+        [
+          {
+            "node": "Create System Log1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Usage Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create System Log1": {
+      "main": [
+        [
+          {
+            "node": "Process Each Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder1": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Usage Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create System Log1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create System Log": {
+      "main": [
+        []
+      ]
+    },
+    "Update Usage Log": {
+      "main": [
+        [
+          {
+            "node": "Process Each Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Reminder Context": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:1-Minute Reminder Check": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

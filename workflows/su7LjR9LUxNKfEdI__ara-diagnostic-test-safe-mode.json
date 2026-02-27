@@ -1,0 +1,136 @@
+{
+  "id": "su7LjR9LUxNKfEdI",
+  "name": "🔧 ARA Diagnostic Test (Safe Mode)",
+  "active": 0,
+  "createdAt": "2026-01-23 01:46:12.715",
+  "updatedAt": "2026-01-23 01:46:12.715",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "22b5734c-9b04-49e8-883b-d8bf0f1fe87c",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// PHASE 1: LOCAL ENVIRONMENT CHECK (No external calls)\nconst tests = {\n  timestamp: new Date().toISOString(),\n  \n  // Environment info\n  node_version: process.version,\n  platform: process.platform,\n  architecture: process.arch,\n  cwd: process.cwd(),\n  home: process.env.HOME,\n  n8n_user_folder: process.env.N8N_USER_FOLDER || 'NOT SET'\n};\n\n// Test 1: File System Access\ntry {\n  const fs = require('fs');\n  const path = require('path');\n  \n  const possibleDirs = [\n    '/home/node/.n8n/exports/videos',\n    '/home/node/.n8n/exports',\n    '/videos',\n    process.cwd() + '/videos'\n  ];\n  \n  tests.directories = {};\n  \n  for (const dir of possibleDirs) {\n    tests.directories[dir] = {\n      exists: fs.existsSync(dir),\n      writable: false\n    };\n    \n    if (fs.existsSync(dir)) {\n      try {\n        const testFile = path.join(dir, '.n8n_test_' + Date.now());\n        fs.writeFileSync(testFile, 'test');\n        fs.unlinkSync(testFile);\n        tests.directories[dir].writable = true;\n      } catch (e) {\n        tests.directories[dir].writable = false;\n        tests.directories[dir].error = e.message;\n      }\n    }\n  }\n  \n  tests.filesystem_ok = Object.values(tests.directories).some(d => d.exists && d.writable);\n  \n} catch (error) {\n  tests.filesystem_ok = false;\n  tests.filesystem_error = error.message;\n}\n\n// Test 2: FFmpeg\ntry {\n  const { execSync } = require('child_process');\n  const ffmpegVersion = execSync('ffmpeg -version 2>&1', { \n    encoding: 'utf8',\n    timeout: 5000 \n  });\n  \n  tests.ffmpeg = {\n    installed: true,\n    version: ffmpegVersion.split('\\n')[0]\n  };\n  \n} catch (error) {\n  tests.ffmpeg = {\n    installed: false,\n    error: error.message\n  };\n}\n\n// Test 3: Node capabilities\ntests.node_capabilities = {\n  can_require_fs: !!require('fs'),\n  can_require_child_process: !!require('child_process'),\n  buffer_available: typeof Buffer !== 'undefined'\n};\n\nreturn [{ json: tests }];"
+      },
+      "id": "4af2c6e7-3cee-4b02-b1f1-3d7214ff7651",
+      "name": "Test Local Environment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appblxg7bQTmpSfKy",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl9lERWgvsDYc0GD",
+          "mode": "id"
+        },
+        "filterByFormula": "={Active}",
+        "options": {}
+      },
+      "id": "7bf1e575-185a-483e-bd95-fd35dc8f63b6",
+      "name": "Check Airtable Structure",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        432,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SAFE CHECK: Only verify fields EXIST, never read actual values\nconst setup = $input.first().json;\n\nconst diagnostics = {\n  airtable_connection: 'SUCCESS',\n  active_record_found: !!setup,\n  \n  // Check if FIELDS exist (not their values)\n  required_fields: {\n    'Airtable Base ID': !!setup?.['Airtable Base ID'],\n    'Table Create ID': !!setup?.['Table Create ID'],\n    'Table Ideas ID': !!setup?.['Table Ideas ID'],\n    'Table Avatars ID': !!setup?.['Table Avatars ID'],\n    'Apify API Token': !!setup?.['Apify API Token'],\n    'Apify Tweet Scraper URN': !!setup?.['Apify Tweet Scraper URN'],\n    'Apify Video Downloader URN': !!setup?.['Apify Video Downloader URN'],\n    'OpenAI API Key': !!setup?.['OpenAI API Key'],\n    'ElevenLabs API Key': !!setup?.['ElevenLabs API Key'],\n    'Replicate API Token': !!setup?.['Replicate API Token'],\n    'n8n Folder': !!setup?.['n8n Folder'],\n    'Google Drive Folder ID': !!setup?.['Google Drive Folder ID']\n  },\n  \n  // Just show WHICH fields are missing (not their values)\n  missing_fields: []\n};\n\nfor (const [field, exists] of Object.entries(diagnostics.required_fields)) {\n  if (!exists) {\n    diagnostics.missing_fields.push(field);\n  }\n}\n\ndiagnostics.all_credentials_present = diagnostics.missing_fields.length === 0;\n\n// Calculate setup completion percentage\nconst totalFields = Object.keys(diagnostics.required_fields).length;\nconst filledFields = totalFields - diagnostics.missing_fields.length;\ndiagnostics.setup_completion_percent = Math.round((filledFields / totalFields) * 100);\n\n// CRITICAL: Remove the actual data to prevent exposure\ndiagnostics.note = 'API keys were NOT read or exposed - only checked for existence';\n\nreturn [{ json: diagnostics }];"
+      },
+      "id": "b15fc3d7-7961-4876-9c19-78b4e6af8f92",
+      "name": "Analyze Structure (No API Exposure)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// FINAL REPORT: Combine all checks\nconst envTests = $input.first().json;\nconst airtableTests = $input.last().json;\n\nconst report = {\n  test_date: new Date().toISOString(),\n  \n  '🖥️ Environment': {\n    status: envTests.filesystem_ok && envTests.ffmpeg?.installed ? '✅ READY' : '❌ ISSUES',\n    filesystem: envTests.filesystem_ok ? '✅ Writable' : '❌ No access',\n    ffmpeg: envTests.ffmpeg?.installed ? '✅ Installed' : '❌ Missing',\n    node_version: envTests.node_version\n  },\n  \n  '📊 Airtable Configuration': {\n    status: airtableTests.all_credentials_present ? '✅ COMPLETE' : '⚠️ INCOMPLETE',\n    completion: airtableTests.setup_completion_percent + '%',\n    missing_fields: airtableTests.missing_fields\n  },\n  \n  '🚦 Overall Status': {\n    ready_to_run: envTests.filesystem_ok && \n                   envTests.ffmpeg?.installed && \n                   airtableTests.all_credentials_present\n  },\n  \n  '🔒 Privacy': {\n    note: 'No API keys or tokens were read or exposed in this test',\n    data_accessed: 'Only field names and existence checks'\n  }\n};\n\nif (!report['🚦 Overall Status'].ready_to_run) {\n  report['⚠️ Blocking Issues'] = [];\n  \n  if (!envTests.filesystem_ok) {\n    report['⚠️ Blocking Issues'].push('❌ No writable directory for videos');\n  }\n  \n  if (!envTests.ffmpeg?.installed) {\n    report['⚠️ Blocking Issues'].push('❌ FFmpeg not installed');\n  }\n  \n  if (!airtableTests.all_credentials_present) {\n    report['⚠️ Blocking Issues'].push('❌ Missing Airtable credentials: ' + airtableTests.missing_fields.join(', '));\n  }\n}\n\nreturn [{ json: report }];"
+      },
+      "id": "3af232c0-421b-4e51-b9f2-981a171b7611",
+      "name": "Generate Safe Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -64
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Test Local Environment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Local Environment": {
+      "main": [
+        [
+          {
+            "node": "Check Airtable Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Airtable Structure": {
+      "main": [
+        [
+          {
+            "node": "Analyze Structure (No API Exposure)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Structure (No API Exposure)": {
+      "main": [
+        [
+          {
+            "node": "Generate Safe Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": null
+}

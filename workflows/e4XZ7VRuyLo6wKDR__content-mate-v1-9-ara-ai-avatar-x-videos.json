@@ -1,0 +1,5027 @@
+{
+  "id": "e4XZ7VRuyLo6wKDR",
+  "name": "Content Mate v1.9 (Ara) (AI Avatar | X Videos)",
+  "active": 0,
+  "createdAt": "2026-01-14 11:42:21.207",
+  "updatedAt": "2026-01-21 15:56:38.343",
+  "nodes": [
+    {
+      "parameters": {
+        "executeOnce": "={{ true }}",
+        "command": "=# knobs\nTOP_H=608\nGAP=1\nPUSH=0\nCROP_TOP={{ ($json.fields.TopCrop && $json.fields.TopCrop[0] !== undefined && $json.fields.TopCrop[0] !== null && $json.fields.TopCrop[0] !== \"\") ? $json.fields.TopCrop[0] : 0 }}\nEXTRA_CROP=0\n\n# compute the bottom height\nBOTTOM_H=$((1920 - (TOP_H + GAP + PUSH) - EXTRA_CROP))\nBOT_Y=$((TOP_H + GAP + PUSH))\n\ndocker compose exec -T ffmpeg ffmpeg -y \\\n-i \"/videos/{{ $('Update Voice').item.json.id }}_xvideo.mp4\" \\\n-i \"/videos/{{ $json.id }}_clone.mp4\" \\\n-filter_complex \"\ncolor=c=black:size=1080x1920:d=360[bg];\n[0:v]scale=1080:${TOP_H}:flags=bicubic[top];\n[1:v]scale=1080:-2[vs];\n[vs]crop=w=1080:h=${BOTTOM_H}:x=0:y=${CROP_TOP}[bot];\n[bg][top]overlay=x=0:y=0[tmp];\n[tmp][bot]overlay=x=0:y=${BOT_Y}[v];\n[1:a]volume=1.5[a]\n\" \\\n-map \"[v]\" -map \"[a]\" \\\n-t \"$(docker compose exec -T ffmpeg ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"/videos/{{ $json.id }}_clone.mp4\" | tr -d '\\r')\" \\\n-c:v libx264 -pix_fmt yuv420p -crf 18 -preset veryfast \\\n-c:a aac -movflags +faststart \\\n/videos/{{ $('Update Voice').item.json.id }}_output_vertical.mp4"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        1104
+      ],
+      "id": "e3480b2f-0c79-4332-bca5-a1feabb9b75c",
+      "name": "Combine Videos1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/videos/{{ $('DOWNLOAD VIDEO3').item.json.id }}_clone.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        1024
+      ],
+      "id": "4ffea3cc-7ef0-4ec5-9537-581aee42441a",
+      "name": "clonevideo1"
+    },
+    {
+      "parameters": {
+        "content": "## Create Avatar ##",
+        "height": 80,
+        "width": 180,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        1040
+      ],
+      "id": "5cfd0844-8dc4-49b7-9e14-55f49b1204c5",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Caption ##",
+        "height": 80,
+        "width": 180,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        1520
+      ],
+      "id": "56d2bbb6-35e9-4adb-b27e-c89fa7ea076e",
+      "name": "Sticky Note13"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "={{ $json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $json['Table X ID'] }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d8006995-22ce-4261-9c05-77720f762bdf",
+      "name": "Search records4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            },
+            {
+              "triggerAtHour": 23
+            },
+            {
+              "triggerAtHour": 4
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1760,
+        1408
+      ],
+      "id": "edf1d7f3-14d1-4b7e-89e2-4640381d7da7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "content": "## Publish ##",
+        "height": 80,
+        "width": 180,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        2256
+      ],
+      "id": "8b118b5d-bc38-4416-8b10-829eb5415543",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Create ID'] }}",
+          "mode": "id"
+        },
+        "filterByFormula": "=IF(FIND(\"Schedule\", {Status}), 1, 0)",
+        "returnAll": false,
+        "limit": 1,
+        "options": {},
+        "sort": {
+          "property": [
+            {
+              "field": "Date Created"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        2240
+      ],
+      "id": "56a0c8e8-0253-40e1-9f4d-c7135e5f1545",
+      "name": "Search records5"
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "mediaUrl": "={{ $node[\"Search records5\"].json.fields[\"Caption Video\"][0].url }}"
+      },
+      "type": "@blotato/n8n-nodes-blotato.blotato",
+      "typeVersion": 2,
+      "position": [
+        736,
+        2240
+      ],
+      "id": "d2d85ad6-4946-4235-b204-a53128cb2eb0",
+      "name": "Upload media1"
+    },
+    {
+      "parameters": {
+        "platform": "youtube",
+        "accountId": {
+          "__rl": true,
+          "value": "25077",
+          "mode": "list",
+          "cachedResultName": "SmartKit (ARA Ai Solution)",
+          "cachedResultUrl": "https://backend.blotato.com/v2/accounts/25077"
+        },
+        "postContentText": "={{ $node[\"Message a model1\"].json[\"YouTube short caption\"] }}\n",
+        "postCreateYoutubeOptionTitle": "={{ $node[\"Message a model1\"].json[\"YouTube short title\"] }}",
+        "options": {}
+      },
+      "type": "@blotato/n8n-nodes-blotato.blotato",
+      "typeVersion": 2,
+      "position": [
+        976,
+        2144
+      ],
+      "id": "7f9f0038-1271-4437-a058-0d776da698c4",
+      "name": "Youtube1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json['YT Short Script'] }}\n\n{{ $json['Source Text'] }}\n\nMake this into SEO optimized objects for each platform\nfor the Youtube Title, make sure to add the update name as the first word(s) in the title "
+            },
+            {
+              "content": "=You are a caption generator that returns ONLY a single valid JSON object with these keys:\n\"Instagram caption\", \"Facebook caption\", \"Twitter caption\", \"TikTok caption\", \"YouTube short caption\", \"YouTube short title\", \"LinkedIn caption\", \"Bluesky caption\", \"Threads caption\", \"Pinterest caption\".\n\nGoal\nCreate concise, platform-tailored captions for a short-form video. The user will provide a YouTube or short-form script as input. Extract the hook, the core benefit, 1 to 2 concrete specifics, and a clear CTA. Keep everything punchy because the video carries most context.\n\nInputs you will receive\n- video_script: the full script or outline\n- topic or product: optional\n- target_audience: optional\n- desired_CTA: optional\n- hashtags_or_keywords: optional\n- tone: optional (default energetic, helpful)\n\nGlobal rules\n- Output JSON only. No extra text, no markdown, no comments.\n- Do not include newline characters inside any value unless the platform rules below explicitly allow line breaks.\n- Never fabricate facts. Derive claims from the video_script.\n- Keep captions distinct across platforms. No copy-paste.\n- Prefer 1 emoji max where appropriate. If tone is professional, use zero.\n- Use 1 to 3 short hashtags max when appropriate. Avoid spammy blocks of tags.\n- Avoid platform-specific handles unless provided.\n- Language: match the language of the video_script.\n\nPlatform styles and constraints\n1) Instagram caption\n- Aim 80 to 120 characters.\n- One short hook, one benefit, soft CTA.\n- Up to 2 hashtags at the end.\n- Optional single emoji near the start.\n- No links.\n\n2) Facebook caption\n- Aim 100 to 160 characters.\n- Friendly and clear. One sentence plus CTA.\n- Add 1 to 2 hashtags only if natural.\n- Links allowed only if provided in inputs.\n\n3) Twitter caption\n- Aim 80 to 120 characters for scannability.\n- Tight hook + 1 key detail + short CTA.\n- Max 2 hashtags. Avoid emojis unless the tone is informal.\n\n4) TikTok caption\n- Aim 60 to 100 characters.\n- High energy hook plus CTA like \"watch to the end\".\n- Up to 3 short, relevant hashtags.\n- No links.\n\n5) YouTube short caption\n- Aim 100 to 150 characters.\n- Clarify the value viewers get in one line. One CTA to subscribe or try the tip.\n- 1 to 2 hashtags max.\n\n6) YouTube short title\n- Aim 40 to 60 characters.\n- Lead with outcome or transformation. Include a power verb.\n- No brackets clickbait. No punctuation at the end unless it is a question.\n\n7) LinkedIn caption\n- Aim 140 to 200 characters.\n- Professional, benefit-led, one specific insight from the script, and a light CTA to comment or learn more.\n- No emojis unless the industry is casual. No hashtags unless 1 highly relevant tag adds value.\n\n8) Bluesky caption\n- Aim 80 to 120 characters.\n- Conversational and slightly tech-savvy tone.\n- 1 to 2 hashtags max. No emojis unless tone is casual.\n- Encourage replies with a question or curiosity.\n\n9) Threads caption\n- Aim 80 to 120 characters.\n- More casual, community-driven vibe. Feel like talking to friends.\n- 1 emoji max, if it feels natural.\n- 1 to 2 hashtags max.\n\n10) Pinterest caption\n- Aim 100 to 150 characters.\n- Inspire curiosity or promise a benefit.\n- Can include 1 to 2 hashtags for search relevance.\n- No emojis unless they fit a creative or lifestyle tone.\n\nContent extraction from video_script\n- Hook: the most surprising or outcome-focused line.\n- Benefit: the clearest value to the viewer.\n- Specific: one stat, step, or tool mentioned.\n- CTA: a single action phrase aligned with desired_CTA if provided.\n\nFormatting rules\n- Escape any internal quotes as needed to keep valid JSON.\n- Do not exceed each platform’s character targets.\n- If an input is missing, make the best safe assumption. Do not leave fields empty.\n\nReturn format (example keys only; values must be generated from the provided script):\n{\n  \"Instagram caption\": \"...\",\n  \"Facebook caption\": \"...\",\n  \"Twitter caption\": \"...\",\n  \"TikTok caption\": \"...\",\n  \"YouTube short caption\": \"...\",\n  \"YouTube short title\": \"...\",\n  \"LinkedIn caption\": \"...\",\n  \"Bluesky caption\": \"...\",\n  \"Threads caption\": \"...\",\n  \"Pinterest caption\": \"...\"\n}\n",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        400,
+        2240
+      ],
+      "id": "b1ed1df7-ec8a-4a49-83b2-e13c3f384a23",
+      "name": "Message a model1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Create ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Search records5').item.json.id }}",
+            "Status": "Published",
+            "Publish Time": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Review",
+                  "value": "Review"
+                },
+                {
+                  "name": "Schedule",
+                  "value": "Schedule"
+                },
+                {
+                  "name": "Published",
+                  "value": "Published"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                },
+                {
+                  "name": "Scripting",
+                  "value": "Scripting"
+                },
+                {
+                  "name": "Get X Video",
+                  "value": "Get X Video"
+                },
+                {
+                  "name": "Voice",
+                  "value": "Voice"
+                },
+                {
+                  "name": "Avatar",
+                  "value": "Avatar"
+                },
+                {
+                  "name": "Combine Videos",
+                  "value": "Combine Videos"
+                },
+                {
+                  "name": "Caption",
+                  "value": "Caption"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "YT Short Script",
+              "displayName": "YT Short Script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Video",
+              "displayName": "Caption Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "X Video Link",
+              "displayName": "X Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatars",
+              "displayName": "Avatars",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatar Link",
+              "displayName": "Avatar Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Voice ID Link",
+              "displayName": "Voice ID Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "TopCrop",
+              "displayName": "TopCrop",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "X Video (sec)",
+              "displayName": "X Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Publish Time",
+              "displayName": "Publish Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "🎵 Music",
+              "displayName": "🎵 Music",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Music Link (from 🎵 Music)",
+              "displayName": "Music Link (from 🎵 Music)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Source Text",
+              "displayName": "Source Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Voiceover 3sec",
+              "displayName": "Voiceover 3sec",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Drive",
+              "displayName": "Caption Drive",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        2528
+      ],
+      "id": "7fb0e0f7-3dc2-40d4-a666-6312b1a28892",
+      "name": "Update Publish1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "65edfdd4-35df-444d-ba05-8ec06ccda791",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bda583a5-f973-4266-ace4-e85fe72c97cd",
+              "leftValue": "={{ $json.noResults }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        0
+      ],
+      "id": "6bf38712-6e2b-491b-9420-f8b2ab0a011e",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "content": "## Source ##",
+        "height": 80,
+        "width": 150,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        16
+      ],
+      "id": "89a504dd-4e83-41c0-ba18-f402aab02260",
+      "name": "Sticky Note15"
+    },
+    {
+      "parameters": {
+        "resource": "speech",
+        "voice": {
+          "__rl": true,
+          "value": "BeIxObt4dYBRJLYoe1hU",
+          "mode": "list",
+          "cachedResultName": "Athira - Personal, Warm and Encouraging"
+        },
+        "text": "={{ $json.fields['YT Short Script'] }}",
+        "additionalOptions": {},
+        "requestOptions": {}
+      },
+      "type": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+      "typeVersion": 1,
+      "position": [
+        208,
+        784
+      ],
+      "id": "1964bfc6-0f17-4d8c-a5c5-1a6c2a4a7dd6",
+      "name": "Convert text to speech",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.video.downloadUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        560
+      ],
+      "id": "caf0e3da-7d0e-4b10-9e77-ceb85a9645a5",
+      "name": "DOWNLOAD"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Create ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('(⭐ Create) a record').item.json.id }}",
+            "Status": "Get X Video",
+            "YT Short Script": "={{ $json.message.content }}",
+            "X Video Link": "={{ $('Update (🔥Ideas) started').item.json.fields.Link }}",
+            "X Video (sec)": "={{ $('HTTP Apify1').item.json.video.durationMs / 1000 }}",
+            "Source Text": "={{ $('HTTP Apify1').item.json.text }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Review",
+                  "value": "Review"
+                },
+                {
+                  "name": "Schedule",
+                  "value": "Schedule"
+                },
+                {
+                  "name": "Published",
+                  "value": "Published"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                },
+                {
+                  "name": "Scripting",
+                  "value": "Scripting"
+                },
+                {
+                  "name": "Get X Video",
+                  "value": "Get X Video"
+                },
+                {
+                  "name": "Voice",
+                  "value": "Voice"
+                },
+                {
+                  "name": "Avatar",
+                  "value": "Avatar"
+                },
+                {
+                  "name": "Combine Videos",
+                  "value": "Combine Videos"
+                },
+                {
+                  "name": "Caption",
+                  "value": "Caption"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "YT Short Script",
+              "displayName": "YT Short Script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Caption Video",
+              "displayName": "Caption Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "X Video Link",
+              "displayName": "X Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Avatars",
+              "displayName": "Avatars",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatar Link",
+              "displayName": "Avatar Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Voice ID Link",
+              "displayName": "Voice ID Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "TopCrop",
+              "displayName": "TopCrop",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "X Video (sec)",
+              "displayName": "X Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Publish Time",
+              "displayName": "Publish Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "🎵 Music",
+              "displayName": "🎵 Music",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Music Link (from 🎵 Music)",
+              "displayName": "Music Link (from 🎵 Music)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Source Text",
+              "displayName": "Source Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Voiceover 3sec",
+              "displayName": "Voiceover 3sec",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Caption Drive",
+              "displayName": "Caption Drive",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        2256,
+        560
+      ],
+      "id": "322eb904-ae3c-4c7e-afc9-08813c223d67",
+      "name": "Update Script"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('⚙️ Setup').item.json['n8n Folder'] }}{{ $('(⭐ Create) a record').item.json.id }}_xvideo.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        560
+      ],
+      "id": "78178219-7e5e-4c3b-b47f-7077c46bb5f9",
+      "name": "Write XVideo"
+    },
+    {
+      "parameters": {
+        "content": "## Create Voice ##",
+        "height": 80,
+        "width": 180,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        800
+      ],
+      "id": "0d6e3712-010f-461e-ab52-8b567a08d697",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "content": "## Get Video & YT Script ##",
+        "height": 96,
+        "width": 182
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        544
+      ],
+      "id": "355e5a5c-3f47-41e3-9852-04781c49c718",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/actor-tasks/{{ $('⚙️ Setup').item.json['Apify Video Downloader URN'] }}/run-sync-get-dataset-items?token={{ $('⚙️ Setup').item.json['Apify API Token'] }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"includeAllQualities\": true,\n    \"includeMetadata\": true,\n    \"tweetUrls\": [\n        \"{{ $('Merge2').item.json.Link }}\"\n    ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        656,
+        560
+      ],
+      "id": "c3ff5936-3fcf-44ab-9b75-bcc0ab9f9dc1",
+      "name": "HTTP Apify1"
+    },
+    {
+      "parameters": {
+        "executeOnce": "={{ true }}",
+        "command": "=ffmpeg -y -ss 0 -t 3 \\\n  -i \"/var/lib/docker/volumes/n8n_n8n_data/_data/exports/{{ $('Write Voice Full1').item.json.fileName }}\" \\\n  -acodec copy \\\n  \"/var/lib/docker/volumes/n8n_n8n_data/_data/exports/{{ $('(⭐ Create) a record').item.json.id }}3s_voice.mp3\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        784
+      ],
+      "id": "f5cb7b57-d3a5-4ea2-a053-220622e58527",
+      "name": "3 sec voice1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/node/.n8n/exports/{{ $('(⭐ Create) a record').item.json.id }}_voice_full.mp3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        416,
+        784
+      ],
+      "id": "b336b324-df7d-4bd9-a00b-68b042a060cf",
+      "name": "Write Voice Full1"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/.n8n/exports/{{ $('(⭐ Create) a record').item.json.id }}3s_voice.mp3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        816,
+        784
+      ],
+      "id": "087fb180-b621-47fe-8305-5c74039aba56",
+      "name": "Read 3s voice1"
+    },
+    {
+      "parameters": {
+        "accountId": {
+          "__rl": true,
+          "value": "28309",
+          "mode": "list",
+          "cachedResultName": "araaisolution",
+          "cachedResultUrl": "https://backend.blotato.com/v2/accounts/28309"
+        },
+        "postContentText": "={{ $node[\"Message a model1\"].json[\"Instagram caption\"] }}\n",
+        "options": {}
+      },
+      "type": "@blotato/n8n-nodes-blotato.blotato",
+      "typeVersion": 2,
+      "position": [
+        976,
+        2528
+      ],
+      "id": "7af91c32-083c-472f-be01-ff18095dcdb0",
+      "name": "Instagram1"
+    },
+    {
+      "parameters": {
+        "platform": "tiktok",
+        "accountId": {
+          "__rl": true,
+          "value": "26911",
+          "mode": "list",
+          "cachedResultName": "joeherrygani",
+          "cachedResultUrl": "https://backend.blotato.com/v2/accounts/26911"
+        },
+        "postContentText": "={{ $node[\"Message a model1\"].json[\"TikTok caption\"] }}",
+        "options": {}
+      },
+      "type": "@blotato/n8n-nodes-blotato.blotato",
+      "typeVersion": 2,
+      "position": [
+        976,
+        1952
+      ],
+      "id": "898b5c2b-16e1-414c-bca9-7b22a7201de3",
+      "name": "Tiktok1"
+    },
+    {
+      "parameters": {
+        "platform": "facebook",
+        "accountId": {
+          "__rl": true,
+          "value": "18147",
+          "mode": "list",
+          "cachedResultName": "Joeherry Ara",
+          "cachedResultUrl": "https://backend.blotato.com/v2/accounts/18147"
+        },
+        "postContentText": "={{ $node[\"Message a model1\"].json[\"Facebook caption\"] }}\n",
+        "facebookPageId": {
+          "__rl": true,
+          "value": "812480281955211",
+          "mode": "list",
+          "cachedResultName": "ARA Ai Solution",
+          "cachedResultUrl": "https://backend.blotato.com/v2/accounts/18147/subaccounts/812480281955211"
+        },
+        "options": {}
+      },
+      "type": "@blotato/n8n-nodes-blotato.blotato",
+      "typeVersion": 2,
+      "position": [
+        976,
+        2336
+      ],
+      "id": "cfcf8cf1-6e89-45f4-82b8-e6d336eee964",
+      "name": "Facebook1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.replicate.com/v1/models/pixverse/lipsync/predictions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"audio\": \"{{ $('Update Voice').item.json.fields['Voiceover 3sec'] }}\",\n    \"video\": \"{{ $json['Avatar link'] }}\"\n  }\n} \n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        1024
+      ],
+      "id": "cabf9019-2b1f-4fdc-a130-807888fd5bfe",
+      "name": "HTTP LipSync1"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        416,
+        1024
+      ],
+      "id": "bb3c3c0d-2b3c-4057-a7a5-236bc2b5f024",
+      "name": "Wait6",
+      "webhookId": "b2cd678d-17fe-475e-b4e4-64e9de2d0d8a"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ce63e765-99b8-4931-8738-71601159cb54",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "succeeded",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        736,
+        1024
+      ],
+      "id": "9b1f5413-f4fd-4ba4-9d6f-4bdc5576e64d",
+      "name": "If5"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('HTTP LipSync1').item.json.urls.get }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        1024
+      ],
+      "id": "604bd42a-218b-43d6-83a4-21603d2dc391",
+      "name": "GET"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        1024
+      ],
+      "id": "3c55011b-bc27-4ee8-a0f9-e3634744d6f0",
+      "name": "Wait7",
+      "webhookId": "7ffa1aef-4cc7-4032-81eb-444ad339390d"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.output }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1072,
+        1024
+      ],
+      "id": "b032cc57-8046-4f11-9c40-539385d71bc0",
+      "name": "DOWNLOAD VIDEO3"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('⚙️ Setup').item.json['n8n Folder'] }}{{ $('Update Voice').item.json.id }}_subtitles.ass",
+        "dataPropertyName": "=data",
+        "options": {
+          "append": false
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        864,
+        1504
+      ],
+      "id": "6dbaa4bd-9f0a-4031-8e3a-9faa0e9920aa",
+      "name": "Save ass"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $('⚙️ Setup').item.json['n8n Folder'] }}{{ $('Update Voice').item.json.id }}_output.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        1504
+      ],
+      "id": "3b0ed18e-7b77-4b0d-95ae-dd3575114d8a",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "value": "0AMSCbk77xX4cUk9PVA",
+          "mode": "list",
+          "cachedResultName": "Andy Hafell Shared",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/0AMSCbk77xX4cUk9PVA"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "=1rtyM0OvOgRWp1SfQJKLxi54k5nR2kTJE",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1776,
+        1504
+      ],
+      "id": "0b37da52-85dc-4023-9913-390046ada810",
+      "name": "Upload file20"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/speech-to-text",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "elevenLabsApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $('⚙️ Setup').item.json['ElevenLabs API Key'] }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model_id",
+              "value": "scribe_v1"
+            },
+            {
+              "name": "language_code",
+              "value": "en"
+            },
+            {
+              "name": "speaker_diarization",
+              "value": "true"
+            },
+            {
+              "name": "tag_audio_events",
+              "value": "true"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        1504
+      ],
+      "id": "19cc9130-be1f-4fc3-9107-fd61818521fe",
+      "name": "ElevenS2T"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Create ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('(⭐ Create) a record').item.json.id }}",
+            "Status": "Review",
+            "Caption Video": "=[ { \"url\": \"{{ $json.webContentLink }}\" } ]",
+            "Caption Drive": "={{ $json.webContentLink }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Review",
+                  "value": "Review"
+                },
+                {
+                  "name": "Schedule",
+                  "value": "Schedule"
+                },
+                {
+                  "name": "Published",
+                  "value": "Published"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                },
+                {
+                  "name": "Scripting",
+                  "value": "Scripting"
+                },
+                {
+                  "name": "Get X Video",
+                  "value": "Get X Video"
+                },
+                {
+                  "name": "Voice",
+                  "value": "Voice"
+                },
+                {
+                  "name": "Avatar",
+                  "value": "Avatar"
+                },
+                {
+                  "name": "Combine Videos",
+                  "value": "Combine Videos"
+                },
+                {
+                  "name": "Caption",
+                  "value": "Caption"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "YT Short Script",
+              "displayName": "YT Short Script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Video",
+              "displayName": "Caption Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "X Video Link",
+              "displayName": "X Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatars",
+              "displayName": "Avatars",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatar Link",
+              "displayName": "Avatar Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Voice ID Link",
+              "displayName": "Voice ID Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "TopCrop",
+              "displayName": "TopCrop",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "X Video (sec)",
+              "displayName": "X Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Publish Time",
+              "displayName": "Publish Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "🎵 Music",
+              "displayName": "🎵 Music",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Music Link (from 🎵 Music)",
+              "displayName": "Music Link (from 🎵 Music)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Source Text",
+              "displayName": "Source Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Voiceover 3sec",
+              "displayName": "Voiceover 3sec",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Drive",
+              "displayName": "Caption Drive",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        1504
+      ],
+      "id": "316a17f9-b873-497e-a78a-9db8b985742f",
+      "name": "Update Captions"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/videos/{{ $('DOWNLOAD VIDEO3').item.json.id }}_clone.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        416,
+        1280
+      ],
+      "id": "b2a3f4d7-e51a-46ce-8382-8e61d5f2571e",
+      "name": "Read 3 sek vid1"
+    },
+    {
+      "parameters": {
+        "content": "## Combine Vids + Music \n##",
+        "height": 112,
+        "width": 180,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        1280
+      ],
+      "id": "3adfdc96-5d49-4673-a9f1-e626c1b2183b",
+      "name": "Sticky Note29"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Update Voice').item.json.fields['Music Link (from 🎵 Music)'][0] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        1280
+      ],
+      "id": "f99dfab8-72da-435c-9aef-498153e6312a",
+      "name": "DOWNLOAD13"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('⚙️ Setup').item.json['n8n Folder'] }}{{ $('Update Voice').item.json.id }}_music.mp3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        1280
+      ],
+      "id": "a7331b2d-06cf-44c8-b231-15ec056b20a9",
+      "name": "Write music"
+    },
+    {
+      "parameters": {
+        "executeOnce": "={{ true }}",
+        "command": "=#!/bin/sh\nset -eu -o pipefail\n\nRID=\"{{ $('Update Voice').item.json.id }}\"\nIN_RAW=\"${RID}_xvideo_9x16.mp4\"\nFIRST_3=\"${RID}_output_vertical.mp4\"\nMUSIC_RAW=\"${RID}_music.mp3\"\n\nOUT=\"/videos/${RID}_video_only.mp4\"\n\n# Resolve absolute paths\ncase \"$IN_RAW\"    in /*) IN=\"$IN_RAW\"     ;; *) IN=\"/videos/$IN_RAW\"     ;; esac\ncase \"$FIRST_3\"   in /*) F3=\"$FIRST_3\"    ;; *) F3=\"/videos/$FIRST_3\"    ;; esac\ncase \"$MUSIC_RAW\" in /*) MUSIC=\"$MUSIC_RAW\";; *) MUSIC=\"/videos/$MUSIC_RAW\";; esac\n\n# Sanity checks\n[ -f \"$IN\" ]    || { echo \"ERROR: Input video not found: $IN\" >&2; exit 1; }\n[ -f \"$F3\" ]    || { echo \"ERROR: Overlay not found: $F3\" >&2; exit 1; }\n[ -f \"$MUSIC\" ] || { echo \"ERROR: Music not found: $MUSIC\" >&2; exit 1; }\n\nrm -f -- \"$OUT\" || true\n\n# Explanation:\n# - Overlay fades out at 2.5s (0.5s crossfade).\n# - Voice track from IN is boosted 1.5x louder.\n# - Music stays at 0.1 volume.\n# - Overlay scales up and centers.\n\nffmpeg -hide_banner -loglevel error -y -nostdin -threads 2 \\\n  -i \"$IN\" \\\n  -i \"$F3\" \\\n  -i \"$MUSIC\" \\\n  -filter_complex \"\n    [1:v]trim=0:3,setpts=PTS-STARTPTS,scale=iw*1:-1,fade=t=out:st=2.5:d=0.5:alpha=1[overlayfit]; \\\n    [0:v]setpts=PTS-STARTPTS[base]; \\\n    [base][overlayfit]overlay=(W-w)/2:(H-h)/2:enable='between(t,0,3)'[vout]; \\\n    [0:a]volume=1.5[a0]; \\\n    [2:a]volume=0.1[a2]; \\\n    [a0][a2]amix=inputs=2:duration=first:dropout_transition=3[aout]\n  \" \\\n  -map \"[vout]\" -map \"[aout]\" \\\n  -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p \\\n  -c:a aac -b:a 192k \\\n  -movflags +faststart \\\n  \"$OUT\"\n\nprintf '{\"output\":\"%s\"}' \"$OUT\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        1280
+      ],
+      "id": "3f539f8d-7ec1-4b31-8137-71d66015a6ec",
+      "name": "Combine vids and music1"
+    },
+    {
+      "parameters": {
+        "command": "=#!/bin/sh\nset -eu\n\nPRED=\"{{ $('DOWNLOAD VIDEO3').item.json.id }}\"\nRID=\"{{ $('Update Voice').item.json.id }}\"\n\nINPUT=\"/videos/${PRED}_clone.mp4\"\nVOICE=\"/videos/${RID}_voice_full.mp3\"\nOUTPUT=\"/videos/${PRED}_9x16.mp4\"\n\ndocker exec -i n8n-ffmpeg-1 ffmpeg -y \\\n  -i \"$INPUT\" \\\n  -i \"$VOICE\" \\\n  -filter_complex \"\\\n    color=c=black:s=1080x1920:d=999[bg]; \\\n    [0:v]scale=1080:-1[vid]; \\\n    [bg][vid]overlay=(W-w)/2:(H-h)/2:eval=init,format=yuv420p[v]\" \\\n  -map \"[v]\" -map 1:a \\\n  -c:v libx264 -c:a aac -pix_fmt yuv420p \\\n  -shortest -movflags +faststart \"$OUTPUT\"\n\nprintf '{\\\"output\\\":\\\"%s\\\"}' \"$OUTPUT\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        1264
+      ],
+      "id": "2ecc33a8-9bea-4a94-a5ff-c8910ab6a4e8",
+      "name": "Transform X to ",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/videos/{{ $('DOWNLOAD VIDEO3').item.json.id }}_9x16.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        816,
+        1280
+      ],
+      "id": "59b59eca-cc1a-4ef7-85d3-bb91634d2c91",
+      "name": "Read X "
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $('⚙️ Setup').item.json['n8n Folder'] }}{{ $('Update Voice').item.json.id }}_video_only.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        1280
+      ],
+      "id": "b1cad777-ec39-49ca-974f-68eba3c757e5",
+      "name": "Write Final Vid no capt1"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code node: ASS subtitles (single-token, exact onsets, 10ms quantized)\n * - Supports ElevenLabs Scribe v1 (words with {text,start,end,type})\n * - Supports Whisper verbose_json (words with {word,start,end})\n * - Ignores spacing/audio_event tokens\n * - Repairs zero-duration and same-start clusters so nothing gets skipped\n * - No template literals in emit (avoids unterminated template errors)\n */\n\n//////////////////// CONFIG ////////////////////\nconst CONFIG = {\n  wordsToShow: 1,\n\n  // Styling\n  fontName: 'Arial',\n  fontSize: 90,\n  fontColor: 'FFFFFF',\n  outlineColor: '000000',\n  backgroundColor: '000000',\n\n  highlightFontSize: 90,\n  highlightColor: '00FFFF',\n\n  bold: 10,\n  italic: 0,\n  underline: 0,\n  strikeout: 0,\n  scaleX: 100,\n  scaleY: 100,\n  spacing: 0,\n  angle: 0,\n\n  borderStyle: 1,\n  outline: 5,\n  shadow: 2,\n\n  alignment: 8,   // top-center\n  marginL: 10,\n  marginR: 10,\n  marginV: 1270,\n\n  // Resolution fallback\n  videoWidth: null,\n  videoHeight: null,\n\n  // Timing\n  minWordDurSec: 0.08,   // 80 ms helps zero-duration tokens\n  minGapCs: 1,           // target 10 ms gap\n  globalOffsetMs: 0,     // Scribe tends to be very tight; start with 0ms\n\n  // When dense, allow nudging next start forward up to X cs (1 cs = 10 ms)\n  maxStartShiftCs: 5,    // 50 ms max shift to preserve onsets\n\n  // Numeric handling (optional)\n  combineNumbers: true,\n  attachNumMaxGapSec: 0.30,\n\n  // Sanitization\n  dropEmpty: true,              // drop empty-text tokens\n  dropPunctOnly: true,          // drop tiny punctuation-only tokens\n  tinyDurThresholdSec: 0.03,    // treat <30ms punctuation as noise\n\n  outputFileName: 'sentence_aware_subtitles.ass',\n};\n\n//////////////////// HELPERS ////////////////////\nfunction firstDefined(){ for (let i=0;i<arguments.length;i++){ if (arguments[i]!=null) return arguments[i]; } }\nfunction toCsStart(sec, offsetMs){ const s=(Number(sec)||0)+(offsetMs/1000); return Math.max(0, Math.floor(s*100)); }\nfunction toCsEnd(sec, offsetMs){ const s=(Number(sec)||0)+(offsetMs/1000); return Math.max(0, Math.ceil(s*100)); }\nfunction csToFmt(cs){\n  cs = Math.max(0, Math.floor(cs));\n  const h = Math.floor(cs/360000); cs%=360000;\n  const m = Math.floor(cs/6000);   cs%=6000;\n  const s = Math.floor(cs/100);    const c=cs%100;\n  return h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+'.'+String(c).padStart(2,'0');\n}\nfunction escASS(t){\n  return String(t||'')\n    .replace(/[\\r\\n]+/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .toUpperCase()\n    .replace(/[{}]/g, m => m==='{' ? '\\\\{' : '\\\\}')\n    .replace(/`/g, \"'\");\n}\n// Classifiers\nfunction isLexical(word){ return /[A-Za-z]/.test(word); }\nfunction isPunctOnly(word){ return /^[^A-Za-z0-9]+$/.test(word); }\nconst NUM_WITH_SUFFIX_RE = /^\\d+(?:[.,]\\d+)*(?:[a-z%]+)?$/i;\n\n// Build one-line text with highlight token i\nfunction createSubtitleText(group, hi){\n  let line = '';\n  for (let i=0;i<group.length;i++){\n    if (i>0) line += ' ';\n    const token = escASS(group[i].word).trim();\n    if (i===hi){\n      line += '{\\\\fs'+CONFIG.highlightFontSize+'\\\\c&H'+CONFIG.highlightColor+'&}'+token+'{\\\\r}';\n    } else {\n      line += token;\n    }\n  }\n  return line;\n}\n\nfunction createGroups(words, maxPerGroup){\n  const groups=[]; let cur=[];\n  for (let i=0;i<words.length;i++){\n    const w=words[i]; cur.push(w);\n    const txt=String(w.word||'').trim();\n    const endOfSentence=/[.!?]$/.test(txt);\n    const atLimit=cur.length>=maxPerGroup;\n    const last=i===words.length-1;\n    if (atLimit||endOfSentence||last){ if (cur.length) groups.push(cur.slice()); cur=[]; }\n  }\n  if (cur.length) groups.push(cur);\n  return groups;\n}\n\n// --- Numeric helpers (optional) ---\nfunction mergeDecimalTriplets(ws){\n  if (!CONFIG.combineNumbers) return ws;\n  const out=[];\n  for (let i=0;i<ws.length;i++){\n    const a=ws[i], b=ws[i+1], c=ws[i+2];\n    if (a&&b&&c && /^\\d+$/.test(String(a.word)) && String(b.word)==='.' && /^\\d+$/.test(String(c.word))){\n      out.push({ word:String(a.word)+'.'+String(c.word), start:+a.start, end:+c.end });\n      i+=2;\n    } else out.push({ word:String(a.word), start:+a.start, end:+a.end });\n  }\n  return out;\n}\nfunction attachNumbersToPrevious(ws, maxGapSec){\n  if (!CONFIG.combineNumbers || !ws.length) return ws;\n  const out=[{...ws[0]}];\n  for (let i=1;i<ws.length;i++){\n    const cur=ws[i], prev=out[out.length-1];\n    const gap = (+cur.start) - (+prev.end);\n    const isNum = NUM_WITH_SUFFIX_RE.test(String(cur.word));\n    if (isNum && gap>=0 && gap<=maxGapSec){\n      prev.word = (String(prev.word||'').trim() + ' ' + String(cur.word||'').trim()).trim();\n      prev.end = Math.max(+prev.end, +cur.end);\n    } else out.push({...cur});\n  }\n  return out;\n}\n\n/**\n * Repair zero-duration and same-start clusters using next-start as ceiling.\n * Keeps lexical tokens, drops only tiny punctuation/empty tokens.\n */\nfunction repairAndSanitize(ws){\n  const tiny = +CONFIG.tinyDurThresholdSec || 0.03;\n  const minLex = +CONFIG.minWordDurSec || 0.08;\n  const kept = [];\n\n  for (const w of ws){\n    const word = String(w.word||'').trim();\n    let s = +w.start || 0;\n    let e = +w.end   || 0;\n\n    if (CONFIG.dropEmpty && word.length===0) continue;\n\n    if (isLexical(word)){\n      if (!(e > s)) e = s + minLex; // synthesize\n      kept.push({ word, start:s, end:e });\n      continue;\n    }\n    // Non-lexical (numbers/punct/etc.)\n    const dur = Math.max(0, e - s);\n    if (CONFIG.dropPunctOnly && isPunctOnly(word) && dur < tiny) continue;\n    if (!(e > s)) e = s + Math.max(minLex, tiny);\n    kept.push({ word, start:s, end:e });\n  }\n  if (!kept.length) return kept;\n\n  // Sort\n  kept.sort((a,b)=> a.start - b.start || a.end - b.end);\n\n  // Pass B: use next-start to give headroom to tiny/zero tokens\n  for (let i=0;i<kept.length;i++){\n    const cur = kept[i];\n    const next = kept[i+1];\n    if (!next) continue;\n    const s = cur.start;\n    let e = cur.end;\n    const nextS = next.start;\n    const dur = e - s;\n\n    if (!(e > s) || dur < tiny){\n      const EPS = 0.01; // 10ms\n      const target = Math.max(minLex, tiny);\n      const safeEnd = (nextS > s + EPS) ? Math.min(nextS - EPS, s + target) : s + target;\n      if (safeEnd > e) cur.end = safeEnd;\n    }\n  }\n\n  // Pass C: pack identical-start clusters into consecutive slices\n  const clusterPacked = [];\n  let i = 0;\n  while (i < kept.length){\n    const s = kept[i].start;\n    const cluster = [kept[i]];\n    let j = i+1;\n    while (j < kept.length && Math.abs(kept[j].start - s) < 0.0005) { cluster.push(kept[j]); j++; } // ~0.5ms\n\n    if (cluster.length === 1){\n      clusterPacked.push(kept[i]); i=j; continue;\n    }\n\n    const nextDistinctStart = (j < kept.length) ? kept[j].start : (s + 0.25);\n    const SLICE = Math.max(0.01, CONFIG.minWordDurSec || 0.08); // 10ms+\n    let cursor = s;\n    for (const tok of cluster){\n      const end = Math.min(cursor + SLICE, nextDistinctStart - 0.005);\n      clusterPacked.push({ word: tok.word, start: cursor, end: Math.max(end, cursor + 0.01) });\n      cursor = Math.min(end, nextDistinctStart - 0.005);\n    }\n    i = j;\n  }\n\n  // Final monotonic guard\n  for (let k=0;k<clusterPacked.length-1;k++){\n    const a = clusterPacked[k], b = clusterPacked[k+1];\n    if (b.start < a.end){\n      b.start = a.end;\n      if (!(b.end > b.start)) b.end = b.start + (CONFIG.minWordDurSec || 0.08);\n    }\n  }\n\n  // Sort again\n  clusterPacked.sort((a,b)=> a.start - b.start || a.end - b.end);\n  return clusterPacked;\n}\n\n//////////////////// PARSE INPUT ////////////////////\n// Accepts:\n// - ElevenLabs: { words: [ {text,start,end,type,...}, ... ] }\n// - Whisper:    { words: [ {word,start,end,...}, ... ] } or { segments: [...] }\nconst item = $input.first().json;\nlet response = (item && Array.isArray(item.data) && item.data[0]) ? item.data[0] : item;\n\nlet words = [];\n\n// Case 1: direct words array\nif (Array.isArray(response.words) && response.words.length){\n  const first = response.words[0];\n\n  // ElevenLabs format: has 'text' + 'type'\n  if (first && typeof first.text === 'string' && 'type' in first){\n    for (const w of response.words){\n      // Keep only real words; ignore spacing/audio_event\n      if (String(w.type).toLowerCase() !== 'word') continue;\n      words.push({ word: String(w.text||''), start: Number(w.start||0), end: Number(w.end||0) });\n    }\n  } else {\n    // Whisper verbose_json: has 'word'\n    for (const w of response.words){\n      words.push({ word: String(w.word||''), start: Number(w.start||0), end: Number(w.end||0) });\n    }\n  }\n}\n// Case 2: segments with nested words (Whisper or Scribe variations)\nelse if (Array.isArray(response.segments) && response.segments.length){\n  for (const seg of response.segments){\n    if (Array.isArray(seg.words) && seg.words.length){\n      const firstW = seg.words[0];\n      const isScribe = firstW && typeof firstW.text === 'string' && 'type' in firstW;\n      for (const w of seg.words){\n        if (isScribe){\n          if (String(w.type).toLowerCase() !== 'word') continue;\n          words.push({ word: String(w.text||''), start: Number(w.start||seg.start||0), end: Number(w.end||seg.end||0) });\n        } else {\n          words.push({ word: String(w.word||''), start: Number(w.start||seg.start||0), end: Number(w.end||seg.end||0) });\n        }\n      }\n    } else {\n      const ss = Number(seg.start||0);\n      const ee = Number(seg.end ?? (ss + 0.6));\n      words.push({ word: String(seg.text||'').trim(), start: ss, end: ee });\n      CONFIG.wordsToShow = Math.max(CONFIG.wordsToShow, 999);\n    }\n  }\n}\n\nif (!words.length) throw new Error('No words found after parsing (did you pass Scribe/Whisper JSON?)');\n\n// Sort & initial min-duration guard\nwords.sort((a,b)=>a.start-b.start || a.end-b.end);\nfor (const w of words){\n  if (!(w.end > w.start)) w.end = w.start + Number(CONFIG.minWordDurSec||0.08);\n}\n\n// Optional numeric fixes (safe for Scribe/Whisper)\nwords = mergeDecimalTriplets(words);\nwords = attachNumbersToPrevious(words, CONFIG.attachNumMaxGapSec);\n\n// Critical repair for zero-duration & same-start clusters\nwords = repairAndSanitize(words);\n\n// Resolution fallback\nCONFIG.videoWidth  = firstDefined(item.width,  item.videoWidth,  response.width,  1080);\nCONFIG.videoHeight = firstDefined(item.height, item.videoHeight, response.height, 1920);\n\n//////////////////// ASS HEADER ////////////////////\nlet ass = '';\nass += '[Script Info]\\n';\nass += 'Title: Single-Token 10ms Quantized (Scribe/Whisper compatible)\\n';\nass += 'ScriptType: v4.00+\\n';\nass += 'PlayResX: ' + CONFIG.videoWidth + '\\n';\nass += 'PlayResY: ' + CONFIG.videoHeight + '\\n\\n';\nass += '[V4+ Styles]\\n';\nass += 'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\\n';\nass += 'Style: Default,' + CONFIG.fontName + ',' + CONFIG.fontSize + ',&H' + CONFIG.fontColor + ',&H' + CONFIG.outlineColor + ',&H' + CONFIG.outlineColor + ',&H' + CONFIG.backgroundColor + ',' + CONFIG.bold + ',' + CONFIG.italic + ',' + CONFIG.underline + ',' + CONFIG.strikeout + ',' + CONFIG.scaleX + ',' + CONFIG.scaleY + ',' + CONFIG.spacing + ',' + CONFIG.angle + ',' + CONFIG.borderStyle + ',' + CONFIG.outline + ',' + CONFIG.shadow + ',' + CONFIG.alignment + ',' + CONFIG.marginL + ',' + CONFIG.marginR + ',' + CONFIG.marginV + ',1\\n\\n';\nass += '[Events]\\n';\nass += 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\\n';\n\n//////////////////// BUILD LINES ////////////////////\n// groups (wordsToShow=1 => single token highlight stepping across words)\nconst groups = createGroups(words, CONFIG.wordsToShow);\n\nconst raw = [];\nfor (const g of groups){\n  for (let i=0;i<g.length;i++){\n    const w=g[i];\n    raw.push({ text:createSubtitleText(g,i), start:w.start, end:w.end });\n  }\n}\n\nconst minDurCs = Math.max(1, Math.round(CONFIG.minWordDurSec * 100)); // ≥1 cs\nconst minGapCs = Math.max(0, Number(CONFIG.minGapCs||0));            // allow 0 if needed\nconst offsetMs = Number(CONFIG.globalOffsetMs||0);\nconst maxShift = Math.max(0, Number(CONFIG.maxStartShiftCs||0));\n\nconst lines = raw.map(L => ({\n  text: L.text,\n  s: toCsStart(L.start, offsetMs),\n  e: toCsEnd(L.end, offsetMs),\n}));\n\n// Ensure minimum duration\nfor (const L of lines){\n  if (L.e < L.s + minDurCs) L.e = L.s + minDurCs;\n}\n\n// Keep starts; if tight, gently push next start up to maxShift\nfor (let i=0;i<lines.length-1;i++){\n  const a=lines[i], b=lines[i+1];\n  let latestEnd = b.s - minGapCs;\n\n  if (latestEnd < a.s + minDurCs){\n    const need = (a.s + minDurCs + minGapCs) - b.s;\n    const canShift = Math.min(maxShift, Math.max(0, need));\n    if (canShift > 0){\n      b.s += canShift;\n      if (b.e < b.s + minDurCs) b.e = b.s + minDurCs;\n      latestEnd = b.s - minGapCs;\n    }\n  }\n\n  const minEnd = a.s + minDurCs;\n  a.e = Math.min(a.e, latestEnd);\n  if (a.e < minEnd) a.e = minEnd;\n\n  if (b.s < a.e){\n    b.s = a.e;\n    if (b.e < b.s + minDurCs) b.e = b.s + minDurCs;\n  }\n}\n\n// Final monotonic guards\nfor (let i=1;i<lines.length;i++){\n  if (lines[i].s < lines[i-1].s) lines[i].s = lines[i-1].s;\n  if (lines[i].e < lines[i].s + minDurCs) lines[i].e = lines[i].s + minDurCs;\n}\n\n// Emit\nfor (const L of lines){\n  ass += 'Dialogue: 0,' +\n    csToFmt(L.s) + ',' +\n    csToFmt(L.e) + ',' +\n    'Default,,0,0,0,,' +\n    L.text + '\\n';\n}\n\n//////////////////// RETURN ////////////////////\nreturn [{\n  json: {\n    generated: true,\n    width: CONFIG.videoWidth,\n    height: CONFIG.videoHeight,\n    words: words.length,\n    lines: lines.length,\n    globalOffsetMs: CONFIG.globalOffsetMs,\n    maxStartShiftCs: CONFIG.maxStartShiftCs\n  },\n  binary: {\n    data: {\n      data: Buffer.from(ass,'utf8').toString('base64'),\n      mimeType: 'text/ass',\n      fileName: CONFIG.outputFileName,\n    },\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1504
+      ],
+      "id": "9a3b3c21-5d66-446c-b9d4-f82168038c22",
+      "name": "Create Ass"
+    },
+    {
+      "parameters": {
+        "executeOnce": "={{ true }}",
+        "command": "=#!/bin/sh\nset -eu\n\nIN=\"/videos/{{ $('Update Voice').item.json.id }}_video_only.mp4\"\nSUBS=\"/videos/{{ $('Update Voice').item.json.id }}_subtitles.ass\"\nOUT=\"/videos/{{ $('Update Voice').item.json.id }}_output.mp4\"\n\nffmpeg -y -i \"$IN\" -vf \"subtitles='$SUBS'\" -c:v libx264 -c:a copy \"$OUT\"\n\nprintf '{\"output\":\"%s\"}' \"$OUT\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        1504
+      ],
+      "id": "3af5076c-4a54-4b1e-b854-c5805723b2ef",
+      "name": "Make video with Captions1",
+      "executeOnce": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "o3",
+          "mode": "list",
+          "cachedResultName": "O3"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a viral YouTube Shorts scriptwriter.\n\t•\tRead the target length (seconds) and compute WORD_BUDGET = floor(seconds * WPS). Default WPS = {{ $json.wps || 2.4 }} .\n\t•\tOutput one script only, no pre/post text.\n\t•\tNever exceed WORD_BUDGET words. If your draft is longer, compress before replying.\n\t•\t6th-grade reading level.\n\t•\tFirst sentence = announcement of exactly what happened.\n\t•\t2nd sentence starts the details; include specific facts from the inspiration.\n\t•\tthe text should be written in the style interesting conversational tone\n\t•\tEnd with: a one sentence close of a shocking statement!\n\n\n\nDo not write more words than 2.4 words per second\nDo not write less words than 2.4 words per second",
+              "role": "system"
+            },
+            {
+              "content": "=The hook of the intro is usually found in this text, which is the viral X post we're using as inspiration: \n{{ $('HTTP Apify1').item.json.text }}\n\n\nSource Text body:\n{{ $json.message.content }}\n\nTarget length: seconds: {{ $('Write XVideo').item.json.video.durationMs / 1000 }}\n\nNote: Never go over 45 Seconds \n\n(Optional) Speaking rate override: 2.4 words per second. "
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1904,
+        560
+      ],
+      "id": "a0a86463-e9a0-4fb1-9ed7-6da2b9d14465",
+      "name": "Message a model3"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini-search-preview-2025-03-11",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI-SEARCH-PREVIEW-2025-03-11"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=find out more information about: \n{{ $('HTTP Apify1').item.json.text }}\n\nPosted by {{ $json.author.name }} on x. \n\nThey may have annoucned something or an update?\nI want you to find as many facts and information about it.\n\nCome back with at least 500 words"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1552,
+        560
+      ],
+      "id": "8e1d02f9-c308-48c7-8517-0022f34d3e43",
+      "name": "Search"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Ideas ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Link": "={{ $json.url }}",
+            "Date": "={{ $json.createdAt }}",
+            "Text": "={{ $json.fullText }}",
+            "Views": "={{ $json.viewCount }}",
+            "Name": "={{ $json.author.userName }}",
+            "Retweets": "={{ $json.retweetCount }}",
+            "IsRetweet": "={{ String($json.isRetweet) }}",
+            "Ratio": "={{\n(() => {\n  const r =\n    $json.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.extended_entities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.entities?.media?.[0]?.video_info?.aspect_ratio\n\n    || $json.retweet?.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.retweet?.extended_entities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.retweet?.entities?.media?.[0]?.video_info?.aspect_ratio\n\n    || $json.retweeted_status?.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.retweeted_status?.extended_entities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.retweeted_status?.entities?.media?.[0]?.video_info?.aspect_ratio\n\n    || $json.quote?.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.quote?.extended_entities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.quote?.entities?.media?.[0]?.video_info?.aspect_ratio\n\n    || $json.quoted_status?.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.quoted_status?.extended_entities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.quoted_status?.entities?.media?.[0]?.video_info?.aspect_ratio\n\n    || $json.quoted_tweet?.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.quoted_tweet?.extended_entities?.media?.[0]?.video_info?.aspect_ratio\n\n    || $json.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.entities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.quote?.extendedEntities?.media?.[0]?.video_info?.aspect_ratio\n    || $json.quote?.entities?.media?.[0]?.video_info?.aspect_ratio\n\n  // Clean array output\n  return Array.isArray(r) ? `[${r.join(',')}]` : r;\n})()\n}}",
+            "Retweet Handle": "={{ $json.extendedEntities.media[0].expanded_url.split('/')[3] }}",
+            "Retweet Link": "={{ $json.extendedEntities.media[0].expanded_url }}",
+            "Retweet Text": "={{ $json.retweet.text }}",
+            "Retweet Views": "={{ $json.retweet.viewCount }}",
+            "Video (sec)": "={{\n  ($json.extendedEntities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.extended_entities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.entities?.media?.[0]?.video_info?.duration_millis / 1000)\n\n  || ($json.retweet?.extendedEntities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.retweet?.extended_entities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.retweet?.entities?.media?.[0]?.video_info?.duration_millis / 1000)\n\n  || ($json.retweeted_status?.extendedEntities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.retweeted_status?.extended_entities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.retweeted_status?.entities?.media?.[0]?.video_info?.duration_millis / 1000)\n\n  || ($json.quote?.extendedEntities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.quote?.extended_entities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.quote?.entities?.media?.[0]?.video_info?.duration_millis / 1000)\n\n  || ($json.quoted_status?.extendedEntities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.quoted_status?.extended_entities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.quoted_status?.entities?.media?.[0]?.video_info?.duration_millis / 1000)\n\n  || $json.extendedEntities.media[0].video_info.duration_millis\n\n\n  || ($json.quoted_tweet?.extendedEntities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.quoted_tweet?.extended_entities?.media?.[0]?.video_info?.duration_millis / 1000)\n  || ($json.extendedEntities.media[0].video_info.duration_millis / 1000)\n  || ($json.entities.media[0].video_info.duration_millis / 1000)\n  || ($json.quote.extendedEntities.media[0].video_info.duration_millis / 1000)\n  || ($json.quote.entities.media[0].video_info.duration_millis / 1000)\n  || ($('Apify POST').json.extendedEntities.media[0].video_info.duration_millis / 1000)\n  || ($('Apify POST').json.entities.media[0].video_info.duration_millis / 1000)\n  || ($('Apify POST').json.retweet.extendedEntities.media[0].video_info.duration_millis / 1000)\n  || ($('Apify POST').json.retweet.entities.media[0].video_info.duration_millis / 1000)\n\n}}\n"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Button",
+              "displayName": "Button",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Link",
+              "displayName": "Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Views",
+              "displayName": "Views",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Text",
+              "displayName": "Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Text",
+              "displayName": "Retweet Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Video (sec)",
+              "displayName": "Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Ratiox",
+              "displayName": "Ratiox",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Retweets",
+              "displayName": "Retweets",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Views",
+              "displayName": "Retweet Views",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Ratio",
+              "displayName": "Ratio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "IsRetweet",
+              "displayName": "IsRetweet",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Handle",
+              "displayName": "Retweet Handle",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Link",
+              "displayName": "Retweet Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "video_done",
+                  "value": "video_done"
+                },
+                {
+                  "name": "video_started",
+                  "value": "video_started"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1328,
+        -16
+      ],
+      "id": "9e6afc30-1ee5-4294-bf03-044a5d479139",
+      "name": "Create a record6"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Ideas ID'] }}",
+          "mode": "id"
+        },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        176
+      ],
+      "id": "53d6f805-0c38-430f-8ce5-4e3d3827f4b0",
+      "name": "Search records6",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "content": "## Schedule Create_auto ##",
+        "height": 80,
+        "width": 180,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2048,
+        848
+      ],
+      "id": "0c624feb-fb40-4bac-8504-cd7476a97b49",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        432,
+        336
+      ],
+      "id": "e60083e4-2961-4dae-a876-11ef8f1995ef",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Google Drive Folder ID'] }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1024,
+        784
+      ],
+      "id": "62add3d3-1def-4e44-9c7c-5b78e846258c",
+      "name": "Upload file16"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('Switch').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('Switch').item.json['Table Create ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('(⭐ Create) a record').item.json.id }}",
+            "Status": "Avatar",
+            "Voiceover 3sec": "={{ $json.webContentLink }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Review",
+                  "value": "Review"
+                },
+                {
+                  "name": "Schedule",
+                  "value": "Schedule"
+                },
+                {
+                  "name": "Published",
+                  "value": "Published"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                },
+                {
+                  "name": "Scripting",
+                  "value": "Scripting"
+                },
+                {
+                  "name": "Get X Video",
+                  "value": "Get X Video"
+                },
+                {
+                  "name": "Voice",
+                  "value": "Voice"
+                },
+                {
+                  "name": "Avatar",
+                  "value": "Avatar"
+                },
+                {
+                  "name": "Combine Videos",
+                  "value": "Combine Videos"
+                },
+                {
+                  "name": "Caption",
+                  "value": "Caption"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "YT Short Script",
+              "displayName": "YT Short Script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Video",
+              "displayName": "Caption Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "X Video Link",
+              "displayName": "X Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatars",
+              "displayName": "Avatars",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatar Link",
+              "displayName": "Avatar Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Voice ID Link",
+              "displayName": "Voice ID Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "TopCrop",
+              "displayName": "TopCrop",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "X Video (sec)",
+              "displayName": "X Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Publish Time",
+              "displayName": "Publish Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "🎵 Music",
+              "displayName": "🎵 Music",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Music Link (from 🎵 Music)",
+              "displayName": "Music Link (from 🎵 Music)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Source Text",
+              "displayName": "Source Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Voiceover 3sec",
+              "displayName": "Voiceover 3sec",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Caption Drive",
+              "displayName": "Caption Drive",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1232,
+        784
+      ],
+      "id": "5692a0c7-9abf-4f15-906b-04bf7375a848",
+      "name": "Update Voice"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $('⚙️ Setup').item.json['n8n Folder'] }}{{ $('(⭐ Create) a record').item.json.id }}_voice_full.mp3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        208,
+        1504
+      ],
+      "id": "15555459-27e0-4b17-b6f0-8a17f5eebe70",
+      "name": "Read Voiceover1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Create ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('(⭐ Create) a record').item.json.id }}",
+            "Status": "Combine Videos"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Review",
+                  "value": "Review"
+                },
+                {
+                  "name": "Schedule",
+                  "value": "Schedule"
+                },
+                {
+                  "name": "Published",
+                  "value": "Published"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                },
+                {
+                  "name": "Scripting",
+                  "value": "Scripting"
+                },
+                {
+                  "name": "Get X Video",
+                  "value": "Get X Video"
+                },
+                {
+                  "name": "Voice",
+                  "value": "Voice"
+                },
+                {
+                  "name": "Avatar",
+                  "value": "Avatar"
+                },
+                {
+                  "name": "Combine Videos",
+                  "value": "Combine Videos"
+                },
+                {
+                  "name": "Caption",
+                  "value": "Caption"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "YT Short Script",
+              "displayName": "YT Short Script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Video",
+              "displayName": "Caption Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "X Video Link",
+              "displayName": "X Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatars",
+              "displayName": "Avatars",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatar Link",
+              "displayName": "Avatar Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Voice ID Link",
+              "displayName": "Voice ID Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "TopCrop",
+              "displayName": "TopCrop",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "X Video (sec)",
+              "displayName": "X Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Publish Time",
+              "displayName": "Publish Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "🎵 Music",
+              "displayName": "🎵 Music",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Music Link (from 🎵 Music)",
+              "displayName": "Music Link (from 🎵 Music)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Source Text",
+              "displayName": "Source Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Voiceover 3sec",
+              "displayName": "Voiceover 3sec",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Drive",
+              "displayName": "Caption Drive",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1632,
+        1024
+      ],
+      "id": "9de23f94-5540-4913-a5f3-b622fd4db292",
+      "name": "Update Avatar1"
+    },
+    {
+      "parameters": {
+        "content": "## Avatar Animation ##",
+        "height": 80,
+        "width": 246,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        1744
+      ],
+      "id": "c8b4210b-df4d-43ce-a957-6a961fca4311",
+      "name": "Sticky Note19"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.replicate.com/v1/models/wan-video/wan-2.2-i2v-fast/predictions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"image\": \"{{ $json['Avatar Image'][0].url }}\",\n    \"prompt\": \"character looking directly into the camera and speaking with hands into the camera \",\n    \"go_fast\": true,\n    \"num_frames\": 81,\n    \"resolution\": \"720p\",\n    \"sample_shift\": 12,\n    \"frames_per_second\": 16,\n    \"interpolate_output\": true,\n    \"lora_scale_transformer\": 1,\n    \"lora_scale_transformer_2\": 1\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        1728
+      ],
+      "id": "724841ee-e7af-4d32-b8f8-11ac2e0d95f0",
+      "name": "Make Avatar Speak1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ce63e765-99b8-4931-8738-71601159cb54",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "succeeded",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        1728
+      ],
+      "id": "c6d4d6f2-af2d-458a-b81e-996df30ee81f",
+      "name": "If6"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        1728
+      ],
+      "id": "139b10bb-da26-46fe-bf7f-19aab6068c95",
+      "name": "Wait1",
+      "webhookId": "23b93fe7-188b-48b0-aa48-744c50b7e4b0"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.output }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1136,
+        1728
+      ],
+      "id": "645fef20-bbb6-4ab0-9aee-8eede5f98d0c",
+      "name": "DOWNLOAD VIDEO1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.urls.get }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        1728
+      ],
+      "id": "cf86bc60-0d1d-4a09-a023-9d668e964928",
+      "name": "Get Avatar Video1"
+    },
+    {
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Google Drive Folder ID'] }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1328,
+        1728
+      ],
+      "id": "d0576643-702f-4125-b71f-80252a6a08c6",
+      "name": "Upload file1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0c54e454-2983-4252-8c97-43422d808348",
+              "leftValue": "={{ $json.video.downloadUrl }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        560
+      ],
+      "id": "a3d1b9db-cc39-495e-a404-1d3e6e6f9ee1",
+      "name": "If7"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/actor-tasks/{{ $('⚙️ Setup').item.json['Apify Tweet Scraper URN'] }}/run-sync-get-dataset-items?token={{ $('⚙️ Setup').item.json['Apify API Token'] }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"maxItems\": 10,\n    \"searchTerms\": [\n        \"from:{{ $json.Handle }} filter:videos lang:en since:{{ $now.minus({ days: 4 }).toISODate() }} until:{{ $now.toISODate() }}\"\n    ],\n    \"sort\": \"Latest\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        656,
+        0
+      ],
+      "id": "3a8fb0c7-4a13-4445-bb5c-870eada28c73",
+      "name": "Apify Tweet ",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Avatars ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('avatar1').item.json.query.recordId }}",
+            "Avatar link": "={{ $json.webContentLink }}",
+            "Avatar Animated": "=[ { \"url\": \"{{ $json.webContentLink }}\" } ]"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Avatar Name",
+              "displayName": "Avatar Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatar Image",
+              "displayName": "Avatar Image",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Animate Avatar",
+              "displayName": "Animate Avatar",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Avatar Animated",
+              "displayName": "Avatar Animated",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Avatar link",
+              "displayName": "Avatar link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Voice ID",
+              "displayName": "Voice ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Create ⭐️",
+              "displayName": "Create ⭐️",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1568,
+        1728
+      ],
+      "id": "b0838740-98e6-4aa1-bfa8-d627f616821c",
+      "name": "Create or update a record1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b439cb32-fd88-4e94-8b1b-cd4fed342fdc",
+                    "leftValue": "={{ $('Merge').item.json.action }}",
+                    "rightValue": "scrape",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Merge').item.json.action }}",
+                    "rightValue": "create_auto",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "83f4c8e8-de7d-40ec-b38e-d97f0f93d4c3"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6282098e-8952-4b24-88c3-a410249907d6",
+                    "leftValue": "={{ $('Merge').item.json.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "93de1673-e100-4d93-bc3e-117c4b9edd4c",
+                    "leftValue": "={{ $('Merge').item.json.action }}",
+                    "rightValue": "avatar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "13954cf3-0277-4f36-8828-e9f1c48e06a9",
+                    "leftValue": "={{ $('Merge').item.json.action }}",
+                    "rightValue": "publish",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -656,
+        976
+      ],
+      "id": "e2d54bc5-f6d5-424a-9016-186b887ae0c6",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            },
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 5
+            },
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 10
+            },
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 15
+            },
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 20
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1760,
+        832
+      ],
+      "id": "a14a1fd5-30db-4738-a705-d591cbd43eea",
+      "name": "Schedule create_auto",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1760,
+        640
+      ],
+      "id": "e9c4ce08-51de-4814-b34f-1789bbf1e2ba",
+      "name": "Schedule scraping",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "content": "## Create_auto ##",
+        "height": 80,
+        "width": 180,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2048,
+        1024
+      ],
+      "id": "22358cf5-3a76-49b6-a5c1-7b02404844a4",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4a41434-cbfd-43f8-b89b-8a2cf8385eab",
+              "name": "action",
+              "value": "create_auto",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1536,
+        832
+      ],
+      "id": "009a7476-1469-403f-9a2f-38a18b90668c",
+      "name": "create_auto"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3dca2f68-3150-4a84-881d-80eca63d1be0",
+              "name": "action",
+              "value": "create",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1536,
+        1024
+      ],
+      "id": "56233972-3cf4-4497-ba77-0b30d1aab9a2",
+      "name": "create"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d6fa0574-813a-48ae-b327-445a4e930543",
+              "name": "action",
+              "value": "scrape",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1536,
+        640
+      ],
+      "id": "1b0c2689-d9c4-44c5-b08a-1c03c437bcde",
+      "name": "scrape"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff7bbbe1-1d8f-4d9c-ab87-fdff296e1b7d",
+              "name": "action",
+              "value": "avatar",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1536,
+        1216
+      ],
+      "id": "92a3a682-46b0-4f99-b180-091f35cb9531",
+      "name": "avatar"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "981494af-29af-4eab-ab30-e4aadd25851e",
+              "name": "action",
+              "value": "publish",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1536,
+        1408
+      ],
+      "id": "6b28cb6a-3b9e-4d7f-b270-7d0d206ea436",
+      "name": "publish"
+    },
+    {
+      "parameters": {
+        "path": "905657ae-26d4-4c8c-8747-2ac846b014db",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1760,
+        1024
+      ],
+      "id": "12b78269-4514-4946-82d7-ed94d5120096",
+      "name": "create_webhook",
+      "webhookId": "905657ae-26d4-4c8c-8747-2ac846b014db"
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1312,
+        976
+      ],
+      "id": "b905aba8-de2a-4da5-86df-f16bcce81166",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appblxg7bQTmpSfKy",
+          "mode": "list",
+          "cachedResultName": "Content Mate v1.9 (Ara) (AI Avatar | X Videos)",
+          "cachedResultUrl": "https://airtable.com/appblxg7bQTmpSfKy"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl9lERWgvsDYc0GD",
+          "mode": "list",
+          "cachedResultName": "⚙️ Setup",
+          "cachedResultUrl": "https://airtable.com/appblxg7bQTmpSfKy/tbl9lERWgvsDYc0GD"
+        },
+        "filterByFormula": "={Active}",
+        "options": {}
+      },
+      "id": "43ca2030-528f-4aaa-a1f2-ce98dd7a549f",
+      "name": "⚙️ Setup",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -1136,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Ideas ID'] }}",
+          "mode": "id"
+        },
+        "id": "={{ $('create_webhook').item.json.query.recordId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        336
+      ],
+      "id": "d5f36e0f-505c-4f01-a8a3-00af403a0656",
+      "name": "Get Record (🔥 Ideas )"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('Switch').item.json['Table Ideas ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "video_started",
+            "id": "={{ $json.id }}",
+            "Views": 0,
+            "Video (sec)": 0,
+            "Retweets": 0,
+            "Retweet Views": 0
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Button",
+              "displayName": "Button",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Link",
+              "displayName": "Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Views",
+              "displayName": "Views",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Text",
+              "displayName": "Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Text",
+              "displayName": "Retweet Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Video (sec)",
+              "displayName": "Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Ratiox",
+              "displayName": "Ratiox",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Retweets",
+              "displayName": "Retweets",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Views",
+              "displayName": "Retweet Views",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Ratio",
+              "displayName": "Ratio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "IsRetweet",
+              "displayName": "IsRetweet",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Handle",
+              "displayName": "Retweet Handle",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Retweet Link",
+              "displayName": "Retweet Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "video_done",
+                  "value": "video_done"
+                },
+                {
+                  "name": "video_started",
+                  "value": "video_started"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        560
+      ],
+      "id": "fb62995a-6cf2-484f-984d-d503d82c32cb",
+      "name": "Update (🔥Ideas) started"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Create ID'] }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.Name || $json.fields.Name }}",
+            "Status": "Scripting",
+            "Date Created": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Review",
+                  "value": "Review"
+                },
+                {
+                  "name": "Schedule",
+                  "value": "Schedule"
+                },
+                {
+                  "name": "Published",
+                  "value": "Published"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                },
+                {
+                  "name": "Scripting",
+                  "value": "Scripting"
+                },
+                {
+                  "name": "Get X Video",
+                  "value": "Get X Video"
+                },
+                {
+                  "name": "Voice",
+                  "value": "Voice"
+                },
+                {
+                  "name": "Avatar",
+                  "value": "Avatar"
+                },
+                {
+                  "name": "Combine Videos",
+                  "value": "Combine Videos"
+                },
+                {
+                  "name": "Caption",
+                  "value": "Caption"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "YT Short Script",
+              "displayName": "YT Short Script",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Video",
+              "displayName": "Caption Video",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "X Video Link",
+              "displayName": "X Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatars",
+              "displayName": "Avatars",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Avatar Link",
+              "displayName": "Avatar Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Voice ID Link",
+              "displayName": "Voice ID Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "TopCrop",
+              "displayName": "TopCrop",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "X Video (sec)",
+              "displayName": "X Video (sec)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Publish Time",
+              "displayName": "Publish Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "🎵 Music",
+              "displayName": "🎵 Music",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Music Link (from 🎵 Music)",
+              "displayName": "Music Link (from 🎵 Music)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Source Text",
+              "displayName": "Source Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Voiceover 3sec",
+              "displayName": "Voiceover 3sec",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Caption Drive",
+              "displayName": "Caption Drive",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        432,
+        560
+      ],
+      "id": "0ebe9955-d18f-4893-8325-6a63bcb754e3",
+      "name": "(⭐ Create) a record"
+    },
+    {
+      "parameters": {
+        "path": "create-avatar",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1760,
+        1216
+      ],
+      "id": "f1659e84-3e0f-49c8-a5a8-55d97fd2eee9",
+      "name": "avatar1",
+      "webhookId": "905657ae-26d4-4c8c-8747-2ac846b014db"
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Airtable Base ID'] }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Setup').item.json['Table Avatars ID'] }}",
+          "mode": "id"
+        },
+        "id": "={{ $('avatar1').item.json.query.recordId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        1728
+      ],
+      "id": "0bf94668-b0e6-441d-a632-e2b402c8a2ec",
+      "name": "Get a record"
+    },
+    {
+      "parameters": {
+        "content": "![alt text](https://i.imgur.com/rNf4Gxp.png)\n\nDownload The Newest Workflow  & Join The Community:\nwww.skool.com/aimate\n",
+        "height": 368,
+        "width": 576,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2736,
+        192
+      ],
+      "id": "9ec6ecc6-16bd-4b9f-a576-6cf43c4e74ba",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 💳 REQUIRED ACCOUNTS ##\n\nCreate these accounts BEFORE configuring:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📊 **AIRTABLE** (Database)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Website: https://airtable.com\n• Cost: FREE plan available\n• Setup:\n  1. Copy the given Airtable \n  2. Edit the \"⚙️ Configuration\" with your information\n  3. Get Personal Access Token\n  4. Fill in configuration record\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🤖 **OPENAI** (GPT)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Cost: Pay-as-you-go (~$5-20/month)\n• Get API key: https://platform.openai.com/api-keys\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎙️ **ELEVENLABS** (Voice)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Cost: FREE 10k chars OR $5-22/month\n• Get API key: https://elevenlabs.io/app/settings/api-keys\n• Note: Voice ID stored in Airtable content tables\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🎬 **REPLICATE** (AI Avatar)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Cost: Pay-per-use (MINIMUM $5!)\n• ⚠️ MUST add $5 before it works\n• Get token: https://replicate.com/account/api-tokens\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🐝 **APIFY** (Twitter/X Scraping)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Cost: FREE $5/month OR $49+/month\n• Get token: https://console.apify.com/account/integrations\n• Create Actor Tasks (format: username~task-name)\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📱 **BLOTATO** (Social Media)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Cost: $29-99+/month\n• Connect: YouTube, Instagram, TikTok, Facebook\n• Get API key and account IDs from dashboard\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🖼️ **RENDERFORM** (Graphics)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Cost: FREE 50 renders OR $19+/month\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n☁️ **GOOGLE DRIVE** (Storage)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Cost: FREE 15GB OR $2-10/month\n• Use existing Google account\n• Create folder for files\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n💰 **TOTAL COST:** ~$40-150/month\n\n⚠️ **CRITICAL:**\n• Replicate needs $5 minimum\n• Use Airtable Form for easy setup\n• Store all credentials in Setup table",
+        "height": 1356,
+        "width": 584,
+        "color": 7
+      },
+      "id": "a343e1c0-ce7b-41a6-88eb-1f4c8ee56395",
+      "name": "💳 ACCOUNTS NEEDED",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2736,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "02d24e9a-990f-4b54-baca-44c765826648",
+              "leftValue": "={{ $json.fullText || $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "267e59a3-8f4e-4469-bd2b-5ba91659f2f5",
+              "leftValue": "={{ ($json.fullText || $json.text).length }}",
+              "rightValue": 80,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "5b48eb6b-ee80-44b0-aa3d-7aa867e05f13",
+              "leftValue": "",
+              "rightValue": "{{ /ai|automation|business|entrepreneur|startup|marketing|sales|sme|founder|strategy|productivity/i.test($json.fullText || $json.text) }}",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "52017866-241c-4a51-a632-1afcad291004",
+              "leftValue": "={{ $json.viewCount }}",
+              "rightValue": 2000,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        0
+      ],
+      "id": "cdb9cd7b-9a0e-494a-a979-48d49b049673",
+      "name": "If",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -ss 0 -t 3 \\\n-i \"/var/lib/docker/volumes/n8n_n8n_data/_data/exports/{{ $('(⭐ Create) a record').item.json.id }}_voice_full.mp3\" \\\n-acodec copy \\\n\"/var/lib/docker/volumes/n8n_n8n_data/_data/exports/{{ $('(⭐ Create) a record').item.json.id }}3s_voice.mp3\""
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        624,
+        784
+      ],
+      "id": "6731c8a0-9f17-46cd-8801-cb7d9905b1d1",
+      "name": "3 sec voice1 (SSH)"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appblxg7bQTmpSfKy",
+          "mode": "list",
+          "cachedResultName": "Content Mate v1.9 (Ara) (AI Avatar | X Videos)",
+          "cachedResultUrl": "https://airtable.com/appblxg7bQTmpSfKy"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblPWUOvylhuUW0cj",
+          "mode": "list",
+          "cachedResultName": "🤦‍♂️ Avatars",
+          "cachedResultUrl": "https://airtable.com/appblxg7bQTmpSfKy/tblPWUOvylhuUW0cj"
+        },
+        "filterByFormula": "{Avatar Name} = \"StudioR2\"",
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1488,
+        784
+      ],
+      "id": "e5c107f5-4eac-4f4d-8f5f-f9163c5aef38",
+      "name": "Get Avatar Link"
+    },
+    {
+      "parameters": {
+        "command": "=set -e\n\ncd /opt/n8n\ndocker compose ps\n\n# ===== IDs (NO ASSUMPTIONS) =====\nPRED_ID=\"{{ $('HTTP LipSync1').item.json.id }}\"          # replicate prediction id (matches *_clone.mp4)\nVOICE_ID=\"{{ $('Update Voice').item.json.id }}\"          # airtable voice record id (matches *_xvideo.mp4)\nCROP_TOP={{ $json.fields.TopCrop && $json.fields.TopCrop[0] !== undefined && $json.fields.TopCrop[0] !== null ? $json.fields.TopCrop[0] : 0 }}\n\n# ===== Layout knobs =====\nTOP_H=608\nGAP=1\nPUSH=0\nEXTRA_CROP=0\n\nBOTTOM_H=$((1920 - (TOP_H + GAP + PUSH) - EXTRA_CROP))\nBOT_Y=$((TOP_H + GAP + PUSH))\n\n# ===== Files =====\nXVIDEO=\"/videos/${VOICE_ID}_xvideo.mp4\"\nCLONE=\"/videos/${PRED_ID}_clone.mp4\"\nOUT=\"/videos/${PRED_ID}_output_vertical.mp4\"\n\necho \"PRED_ID=${PRED_ID}\"\necho \"VOICE_ID=${VOICE_ID}\"\necho \"XVIDEO=${XVIDEO}\"\necho \"CLONE=${CLONE}\"\necho \"OUT=${OUT}\"\necho \"---- /videos listing ----\"\ndocker compose exec -T n8n sh -lc \"ls -la /videos | tail -n 50\"\n\n# ===== Hard checks (fail early with clear reason) =====\ndocker compose exec -T n8n sh -lc \"test -f \\\"$XVIDEO\\\" && echo 'OK: XVIDEO exists' || (echo 'MISSING XVIDEO' && exit 11)\"\ndocker compose exec -T n8n sh -lc \"test -f \\\"$CLONE\\\" && echo 'OK: CLONE exists'  || (echo 'MISSING CLONE'  && exit 12)\"\n\n# ===== Duration from clone audio =====\nDUR=\"$(docker compose exec -T ffmpeg ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"$CLONE\" | tr -d '\\r')\"\necho \"DUR=$DUR\"\n\n# ===== Compose vertical =====\ndocker compose exec -T ffmpeg ffmpeg -y \\\n  -i \"$XVIDEO\" \\\n  -i \"$CLONE\" \\\n  -filter_complex \"color=c=black:size=1080x1920:d=360[bg];\n[0:v]scale=1080:${TOP_H}:flags=bicubic[top];\n[1:v]scale=1080:-2[vs];\n[vs]crop=w=1080:h=${BOTTOM_H}:x=0:y=${CROP_TOP}[bot];\n[bg][top]overlay=x=0:y=0[tmp];\n[tmp][bot]overlay=x=0:y=${BOT_Y}[v];\n[1:a]volume=1.5[a]\" \\\n  -map \"[v]\" -map \"[a]\" \\\n  -t \"$DUR\" \\\n  -c:v libx264 -pix_fmt yuv420p -crf 18 -preset veryfast \\\n  -c:a aac -movflags +faststart \\\n  \"$OUT\"\n\necho \"OK: wrote $OUT\"\ndocker compose exec -T n8n sh -lc \"ls -la \\\"$OUT\\\"\"\n"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        192,
+        1280
+      ],
+      "id": "f51b8274-2466-4dcb-854f-24df1ac2f6c8",
+      "name": "SSH Combine Videos"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d7d41c31-c506-4648-9dbb-d07383315657",
+              "name": "=airtable_record_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "79be4da2-ff6e-4957-9964-baf1f8fa912f",
+              "name": "=run_marker",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -960,
+        1024
+      ],
+      "id": "1796dd23-8b86-49de-aab8-2d6d3263ab09",
+      "name": "Lock IDs"
+    },
+    {
+      "parameters": {
+        "command": "=set -eu\n\nPRED_ID=\"{{ $('DOWNLOAD VIDEO3').item.json.id }}\"\nRID=\"{{ $('Update Voice').item.json.id }}\"\n\nINPUT=\"/videos/${PRED_ID}_clone.mp4\"\nVOICE=\"/videos/${RID}_voice_full.mp3\"\nOUTPUT=\"/videos/${PRED_ID}_9x16.mp4\"\n\ncd /opt/n8n\n\n# Run ffmpeg inside the ffmpeg container\ndocker compose exec -T ffmpeg ffmpeg -y \\\n  -i \"$INPUT\" \\\n  -i \"$VOICE\" \\\n  -filter_complex \"\\\n    color=c=black:s=1080x1920:d=999[bg]; \\\n    [0:v]scale=1080:-1[vid]; \\\n    [bg][vid]overlay=(W-w)/2:(H-h)/2:eval=init,format=yuv420p[v]\" \\\n  -map \"[v]\" -map 1:a \\\n  -c:v libx264 -c:a aac -pix_fmt yuv420p \\\n  -shortest -movflags +faststart \"$OUTPUT\"\n\necho \"OUTPUT=$OUTPUT\"\nls -lah \"$OUTPUT\"\n"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        624,
+        1280
+      ],
+      "id": "86751489-2758-44be-86d5-d96e7b3cf5c9",
+      "name": "SSH Transform X to 9x16"
+    }
+  ],
+  "connections": {
+    "Combine Videos1": {
+      "main": [
+        []
+      ]
+    },
+    "clonevideo1": {
+      "main": [
+        [
+          {
+            "node": "Update Avatar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records5": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload media1": {
+      "main": [
+        [
+          {
+            "node": "Youtube1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tiktok1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Instagram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Upload media1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Apify Tweet ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [
+          {
+            "node": "Create a record6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert text to speech": {
+      "main": [
+        [
+          {
+            "node": "Write Voice Full1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DOWNLOAD": {
+      "main": [
+        [
+          {
+            "node": "Write XVideo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Script": {
+      "main": [
+        [
+          {
+            "node": "Convert text to speech",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write XVideo": {
+      "main": [
+        [
+          {
+            "node": "Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Apify1": {
+      "main": [
+        [
+          {
+            "node": "If7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 sec voice1": {
+      "main": [
+        []
+      ]
+    },
+    "Write Voice Full1": {
+      "main": [
+        [
+          {
+            "node": "3 sec voice1 (SSH)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read 3s voice1": {
+      "main": [
+        [
+          {
+            "node": "Upload file16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram1": {
+      "main": [
+        [
+          {
+            "node": "Update Publish1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP LipSync1": {
+      "main": [
+        [
+          {
+            "node": "Wait6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait6": {
+      "main": [
+        [
+          {
+            "node": "GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If5": {
+      "main": [
+        [
+          {
+            "node": "DOWNLOAD VIDEO3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET": {
+      "main": [
+        [
+          {
+            "node": "If5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait7": {
+      "main": [
+        [
+          {
+            "node": "GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DOWNLOAD VIDEO3": {
+      "main": [
+        [
+          {
+            "node": "clonevideo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save ass": {
+      "main": [
+        [
+          {
+            "node": "Make video with Captions1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Upload file20",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file20": {
+      "main": [
+        [
+          {
+            "node": "Update Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ElevenS2T": {
+      "main": [
+        [
+          {
+            "node": "Create Ass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read 3 sek vid1": {
+      "main": [
+        [
+          {
+            "node": "SSH Transform X to 9x16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DOWNLOAD13": {
+      "main": [
+        [
+          {
+            "node": "Write music",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write music": {
+      "main": [
+        [
+          {
+            "node": "Combine vids and music1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine vids and music1": {
+      "main": [
+        [
+          {
+            "node": "Write Final Vid no capt1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform X to ": {
+      "main": [
+        []
+      ]
+    },
+    "Read X ": {
+      "main": [
+        [
+          {
+            "node": "DOWNLOAD13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Final Vid no capt1": {
+      "main": [
+        [
+          {
+            "node": "Read Voiceover1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ass": {
+      "main": [
+        [
+          {
+            "node": "Save ass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make video with Captions1": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model3": {
+      "main": [
+        [
+          {
+            "node": "Update Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search": {
+      "main": [
+        [
+          {
+            "node": "Message a model3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records6": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Update (🔥Ideas) started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file16": {
+      "main": [
+        [
+          {
+            "node": "Update Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Voice": {
+      "main": [
+        [
+          {
+            "node": "Get Avatar Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Voiceover1": {
+      "main": [
+        [
+          {
+            "node": "ElevenS2T",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Avatar1": {
+      "main": [
+        [
+          {
+            "node": "SSH Combine Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Avatar Speak1": {
+      "main": [
+        [
+          {
+            "node": "Get Avatar Video1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If6": {
+      "main": [
+        [
+          {
+            "node": "DOWNLOAD VIDEO1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Get Avatar Video1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DOWNLOAD VIDEO1": {
+      "main": [
+        [
+          {
+            "node": "Upload file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Avatar Video1": {
+      "main": [
+        [
+          {
+            "node": "If6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file1": {
+      "main": [
+        [
+          {
+            "node": "Create or update a record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If7": {
+      "main": [
+        [
+          {
+            "node": "DOWNLOAD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Tweet ": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Search records4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Search records6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Record (🔥 Ideas )",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Search records5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule create_auto": {
+      "main": [
+        [
+          {
+            "node": "create_auto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_auto": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "scrape": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Schedule scraping": {
+      "main": [
+        [
+          {
+            "node": "scrape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "avatar": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "publish": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "create_webhook": {
+      "main": [
+        [
+          {
+            "node": "create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Setup": {
+      "main": [
+        [
+          {
+            "node": "Lock IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Record (🔥 Ideas )": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Update (🔥Ideas) started": {
+      "main": [
+        [
+          {
+            "node": "(⭐ Create) a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "(⭐ Create) a record": {
+      "main": [
+        [
+          {
+            "node": "HTTP Apify1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "avatar1": {
+      "main": [
+        [
+          {
+            "node": "avatar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a record": {
+      "main": [
+        [
+          {
+            "node": "Make Avatar Speak1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 sec voice1 (SSH)": {
+      "main": [
+        [
+          {
+            "node": "Read 3s voice1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Avatar Link": {
+      "main": [
+        [
+          {
+            "node": "HTTP LipSync1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SSH Combine Videos": {
+      "main": [
+        [
+          {
+            "node": "Read 3 sek vid1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lock IDs": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SSH Transform X to 9x16": {
+      "main": [
+        [
+          {
+            "node": "Read X ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    },
+    "node:Schedule create_auto": {
+      "recurrenceRules": []
+    },
+    "node:Schedule scraping": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

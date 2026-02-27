@@ -1,0 +1,424 @@
+{
+  "id": "A57YNdWq1cnrPvlf",
+  "name": "Reminders 1 min WhatsApp - Upgrade 1.1 (fine tune)",
+  "active": 0,
+  "createdAt": "2025-12-14 05:29:30.884",
+  "updatedAt": "2025-12-17 09:24:22.415",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "reminders",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_sent",
+              "condition": "eq",
+              "keyValue": "false"
+            },
+            {
+              "keyName": "reminder_time",
+              "condition": "=gte",
+              "keyValue": "={{ $('Calculate Time Window').item.json.start_time }}"
+            },
+            {
+              "keyName": "reminder_time",
+              "condition": "=lte",
+              "keyValue": "={{ $('Calculate Time Window').item.json.end_time }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        48
+      ],
+      "id": "19a3f346-f30f-4fce-9bbe-704dcf2aeba8",
+      "name": "Get Pending Reminders"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -224,
+        48
+      ],
+      "id": "10bd32b4-b992-413a-a755-085acb71b9ca",
+      "name": "Process Each Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "users",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2ecedf0f-cf21-48dc-b87c-d9ae1304d603",
+      "name": "Get User for Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "reminders",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Process Each Reminder').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "is_sent",
+              "fieldValue": "true"
+            },
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        224
+      ],
+      "id": "a66f8c30-7da3-435f-a979-3abbdc20aeb9",
+      "name": "Mark Reminder Sent"
+    },
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Get User for Reminder').item.json.id }}"
+            },
+            {
+              "fieldId": "telegram_chat_id",
+              "fieldValue": "={{ $('Get User for Reminder').item.json.telegram_id }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "reminder"
+            },
+            {
+              "fieldId": "assistant_response",
+              "fieldValue": "={{ $('AI Agent1').item.json.output }}"
+            },
+            {
+              "fieldId": "session_id",
+              "fieldValue": "reminder_{{ Date.now() }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ Date.now() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        224
+      ],
+      "id": "62e961e4-5af0-4957-bf91-c451f50f2cb9",
+      "name": "Log Reminder Conversation"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({\n  reminder_text: $('Process Each Reminder').item.json.reminder_text,\n  user_name: $json.first_name || $json.telegram_username || 'there',\n  language_code: $json.preferred_language || 'en'\n}) }}",
+        "options": {
+          "systemMessage": "=You are ARA’s Reminder Description Generator for WhatsApp.\n\nYou will receive JSON input with:\n\nreminder_text: a short action phrase stored in the database (e.g. “call Aishah”, “follow up Aishah pasal loan”, “medical check up dengan doktor”, “bayar TNB bill”)\n\nuser_name: the user’s name (e.g. “Joeherry”; you do NOT need to repeat it)\n\nlanguage_code: one of \"en\", \"ms\", \"zh\", \"id\", \"ta\"\n\nYour output will be inserted into this Twilio-approved template (or its translated version) as {{2}}:\n\nEnglish (en):\n\nHi {{1}}, this is a quick reminder for {{2}}.\n\nIf you need to make any changes, just let me know anytime. I’m here to help!\n\n\nMalay (ms):\n\nHi {{1}}, ini peringatan ringkas untuk {{2}}.\n\nKalau perlu ubah apa-apa, beritahu saja bila-bila masa. Saya sedia bantu!\n\n\n\nChinese (zh):\n\nHi {{1}}，这是关于 {{2}} 的一个简短提醒。\n\n如果你需要做任何更改，随时告诉我。我随时可以帮你！\n\nIndonesian (id):\n\nHi {{1}}, ini pengingat singkat untuk {{2}}.\n\nKalau kamu perlu mengubah sesuatu, tinggal beri tahu kapan saja. Aku siap membantu!\n\n\nTamil (ta):\n\nஹை {{1}}, இது {{2}} பற்றிய ஒரு சுருக்கமான நினைவூட்டல்.\n\nஏதாவது மாற்றம் செய்யணும்னா, எப்போதுமே சொல்லுங்க. நான் உதவ தயாரா இருக்கேன்!\n\n\nYou must NOT output the full template.\nYou must ONLY output the content that replaces {{2}}.\n\n1. ACTION PRESERVATION (VERY IMPORTANT)\n\nreminder_text is authoritative.\n\nDo NOT change the meaning of the action.\n\nDo NOT convert:\n\n“call Aishah” → “follow up Aishah”\n\n“follow up” → “check in”\n\n“bayar bil” → “settle payment”\n\nYou may rephrase slightly to fit grammar, e.g.:\n\n“call Aishah” → “your call with Aishah”\n\n“medical check up dengan doktor” → “medical check up dengan doktor”\n\nBut the core action must remain EXACT in meaning.\n\n2. LANGUAGE RULES\n\nUse the language from language_code:\n\n\"en\" → English\n\n\"ms\" → Bahasa Malaysia (rojak allowed if reminder_text is rojak)\n\n\"zh\" → Chinese\n\n\"id\" → Indonesian\n\n\"ta\" → Tamil\n\nDo NOT switch to a different language.\n\nDo NOT translate reminder_text; keep rojak words exactly.\n\n3. STRUCTURE OF YOUR OUTPUT (THIS IS {{2}})\n\nYour output must be one short phrase or sentence, containing:\n\nA description of the reminder action, using the exact meaning of reminder_text.\n\nOptionally one short, situation-appropriate supportive phrase.\n\nExactly ONE emoji at the end.\n\nThe reminder is for now.\nDo NOT say “in 5 minutes”, “tomorrow”, “later”, etc.\n\nExamples of allowed shapes (in English; you MUST respond in the language of language_code):\n\nyour call with Aishah — you’ve got this 💪\n\nmedical check up dengan doktor. Semoga semuanya dipermudahkan ❤️\n\nbayar TNB bill untuk rumah, good job staying organised ✅\n\n4. SUPPORTIVE PHRASE LOGIC (OPTIONAL)\n\nBased on reminder_text, you may add a short encouragement:\n\ninterviews / meetings / exams / presentations\n→ “you’ve got this”, “all the best”\n\nmedical / hospital / clinic / checkup\n→ “hope everything goes smoothly”, “semoga semuanya dipermudahkan”\n\nfamily / loved ones / kids / parents\n→ “hope it goes well with your loved ones”\n\npayments / bills / admin / errands\n→ “good job staying organised”\n\nself-care / exercise / spiritual routines\n→ “good job taking care of yourself”\n\nif unsure\n→ use a neutral “all the best” in the correct language\n\nKeep supportive phrase short.\n\n5. EMOJI RULE\n\nUse exactly ONE emoji.\n\nPlace it at the very end of your output.\n\nChoose an emoji appropriate to the situation (📱, 💪, ❤️, 💚, 🌟, 💡, etc.).\n\n6. OUTPUT FORMAT\n\nOutput ONLY the string that will replace {{2}}.\n\nNO JSON.\n\nNO template text.\n\nNO “Hi…”.\n\nNO explanations.\n\nMax length: ~1 short sentence (you may use “—” or “. ” inside)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0f26b1ee-be7f-4a29-a159-e6a7ed4a6274",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        224
+      ],
+      "id": "296a7f70-7b25-4dfb-a221-932a21889123",
+      "name": "OpenAI Chat Model1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1-Minute Reminder Window Generator\n// ----------------------------------\n// This workflow should be triggered every 1 minute by CRON (* * * * *)\n\n// Current time (UTC or your server timezone — n8n uses server timezone)\nconst now = new Date();\n\n// Start = now (exact minute)\nconst startTime = new Date(now);\nstartTime.setSeconds(0, 0);  // e.g., 14:23:00.000\n\n// End = +1 minute\nconst endTime = new Date(startTime);\nendTime.setMinutes(endTime.getMinutes() + 1); // e.g., 14:24:00.000\n\n// Debug info\nconsole.log(\"⏱️ 1-Min Window Mode\");\nconsole.log(\"Fetching reminders from\", startTime.toLocaleString(), \"to\", endTime.toLocaleString());\n\n// Output to next node (Supabase)\nreturn [{\n  json: {\n    mode: \"1-minute\",\n    current_time: now.toISOString(),\n    start_time: startTime.toISOString(),\n    end_time: endTime.toISOString(),\n    time_window_minutes: 1,\n    debug_info: {\n      readable_window: startTime.toLocaleTimeString() + \" → \" + endTime.toLocaleTimeString(),\n      server_timezone_offset_minutes: now.getTimezoneOffset()\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        48
+      ],
+      "id": "c15da636-b14f-40ab-ac60-a8218ddaefb3",
+      "name": "Calculate Time Window"
+    },
+    {
+      "parameters": {
+        "from": "+601125911400",
+        "to": "={{ $('Get User for Reminder').item.json.telegram_id }}",
+        "toWhatsapp": true,
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        800,
+        0
+      ],
+      "id": "9722ae0b-b81e-4fb0-a857-cb33d1453ed3",
+      "name": "Send Reminder"
+    },
+    {
+      "parameters": {
+        "tableId": "usage_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Get User for Reminder').item.json.id }}"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "reminder_sent"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{  \n  {    \n    source: \"whatsapp\",    \n    type: \"reminder\",    \n    action: \"sent\",    \n    reminder_id: $json.id || null,    \n    to: $json.phone || $json.to || null,    \n    message_body: $('AI Agent1').item.json.output  \n  } \n}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        0
+      ],
+      "id": "a073d51a-2a19-40ef-be02-29e7223853c6",
+      "name": "reminder_sent"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": "=1"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        48
+      ],
+      "id": "704a5a98-b865-425d-8cc4-654e4943c4f3",
+      "name": "1-Minute Reminder Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build final WhatsApp reminder message using approved Twilio-style templates\n// Input expected in item.json (from AI Agent1):\n// - output               : string  (Ai Agent1 result = {{2}} content)\n//\n// User info is read from the node \"Get User for Reminder\":\n// - preferred_language   : 'en' | 'ms' | 'zh' | 'id' | 'ta'\n// - preferred_name       : optional string (user's preferred display name)\n// - first_name           : optional string (fallback name)\n// - telegram_username    : optional string (last fallback)\n\nconst templates = {\n  en: `Hi {{1}}, this is a quick reminder for {{2}}.\n\nIf you need to make any changes, just let me know anytime. I’m here to help!`,\n\n  ms: `Hi {{1}}, ini peringatan ringkas untuk {{2}}.\n\nKalau perlu ubah apa-apa, beritahu saja bila-bila masa. Saya sedia bantu!`,\n\n  zh: `Hi {{1}}，这是关于 {{2}} 的一个简短提醒。\n\n如果你需要做任何更改，随时告诉我。我随时可以帮你！`,\n\n  id: `Hi {{1}}, ini pengingat singkat untuk {{2}}.\n\nKalau kamu perlu mengubah sesuatu, tinggal beri tahu kapan saja. Aku siap membantu!`,\n\n  ta: `ஹை {{1}}, இது {{2}} பற்றிய ஒரு சுருக்கமான நினைவூட்டல்.\n\nஏதாவது மாற்றம் செய்யணும்னா, எப்போதுமே சொல்லுங்க. நான் உதவ தயாரா இருக்கேன்!`,\n};\n\nconst clean = (v) => (typeof v === 'string' ? v.trim() : '');\n\n// 👇 Safely get the single user row from \"Get User for Reminder\"\n// runIndex = 0, itemIndex = 0 (since you're in SplitInBatches loop, 1 user per run)\n// 👇 Get the user row that belongs to THIS item flow\nlet user = {};\ntry {\n  const userItem = $item(0).$node[\"Get User for Reminder\"];\n  user = (userItem && userItem.json) ? userItem.json : {};\n} catch (e) {\n  user = {};\n}\n\n\nconst newItems = items.map(item => {\n  const data = item.json || {};\n\n  // 1) Language code: prefer user.preferred_language, else any language field on this item, else 'en'\n  const langRaw = (\n    user.preferred_language ||\n    user.language_code ||\n    data.preferred_language ||\n    data.language_code ||\n    'en'\n  ).toString().toLowerCase();\n\n  const allowedLangs = ['en', 'ms', 'zh', 'id', 'ta'];\n  const languageCode = allowedLangs.includes(langRaw) ? langRaw : 'en';\n\n  // 2) Display name: preferred_name → first_name → user_name → telegram_username → \"there\"\n  const preferredName = clean(user.preferred_name || data.preferred_name);\n  const firstName = clean(user.first_name || data.first_name);\n  const userName = clean(data.user_name);\n  const handle = clean(user.telegram_username || data.telegram_username);\n\n  const displayName =\n    preferredName ||\n    firstName ||\n    userName ||\n    handle ||\n    'there';\n\n  // 3) Reminder description from Ai Agent1 ({{2}})\n  const reminderPart = clean(data.output || data.agent_text || data.reminder_description);\n\n  if (!reminderPart) {\n    throw new Error('Missing reminder description from Ai Agent1 (expected in json.output / agent_text / reminder_description).');\n  }\n\n  // 4) Pick template for language and inject {{1}} and {{2}}\n  const template = templates[languageCode] || templates.en;\n\n  const body = template\n    .replace('{{1}}', displayName)\n    .replace('{{2}}', reminderPart);\n\n  return {\n    json: {\n      ...data,\n      display_name: displayName,\n      language_code: languageCode,\n      body, // final message to send via Twilio\n    },\n  };\n});\n\nreturn newItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        0
+      ],
+      "id": "7c81bd1c-0202-49b6-8a13-57fc0a0e3537",
+      "name": "Construct Template Message"
+    }
+  ],
+  "connections": {
+    "Get Pending Reminders": {
+      "main": [
+        [
+          {
+            "node": "Process Each Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Reminder": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get User for Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User for Reminder": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Log Reminder Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Construct Template Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Time Window": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "reminder_sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1-Minute Reminder Check": {
+      "main": [
+        [
+          {
+            "node": "Calculate Time Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construct Template Message": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reminder_sent": {
+      "main": [
+        [
+          {
+            "node": "Process Each Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:1-Minute Reminder Check": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -1,0 +1,824 @@
+{
+  "id": "eTQcqds6hm3jVm4L",
+  "name": "ARA Seg A Power Tips v1",
+  "active": 0,
+  "createdAt": "2025-12-20 00:30:14.936",
+  "updatedAt": "2025-12-22 10:06:56.410",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Extract Context (Segment A/B/C safe)\n// Prefer last inbound user message (if meaningful),\n// otherwise fallback to scanning last context rows.\n\n// ---------------- Utilities ----------------\nfunction clean(text) {\n  if (text === null || text === undefined) return null;\n  const s = String(text).replace(/\\s+/g, \" \").trim();\n  return s || null;\n}\nfunction lower(text) {\n  const c = clean(text);\n  return c ? c.toLowerCase() : \"\";\n}\n\n// ---------------- Hard Filters ----------------\nconst BORING = new Set([\n  \"hi\", \"hello\", \"hai\", \"hey\",\n  \"ok\", \"okay\", \"k\", \"kk\",\n  \"ya\", \"ye\", \"yep\", \"yup\",\n  \"tq\", \"tqsm\", \"thanks\", \"thank you\",\n  \"yes\", \"no\",\n  \"👍\", \"👌\", \"🙏\", \"😊\",\n]);\n\nfunction isGreetingOrNoise(l) {\n  if (!l) return true;\n  if (BORING.has(l)) return true;\n\n  const prefixes = [\n    \"hi\", \"hello\", \"hai\", \"hey\",\n    \"assalamualaikum\", \"assalammualaikum\", \"salam\",\n    \"good morning\", \"good night\",\n    \"selamat pagi\", \"selamat malam\",\n  ];\n\n  return prefixes.some(\n    (p) => l === p || l.startsWith(p + \" \") || l.startsWith(p + \",\")\n  );\n}\n\nfunction isProfileOrMeta(l) {\n  return (\n    l.includes(\"call me\") ||\n    l.includes(\"my name is\") ||\n    l.includes(\"what is my name\") ||\n    l.includes(\"language\") ||\n    l.includes(\"timezone\") ||\n    l.includes(\"kuala lumpur\") ||\n    l.includes(\"welcome the user\") ||\n    l.includes(\"thanks for contacting ara\") ||\n    l.includes(\"nama saya ara\") ||\n    l.includes(\"my name is ara\")\n  );\n}\n\nfunction isSexual(l) {\n  return l.includes(\"sex\") || l.includes(\"have sex\") || l.includes(\"sleep with\");\n}\n\nfunction isBadTopic(l) {\n  return (\n    !l ||\n    l.length <= 5 ||\n    l.startsWith(\"/\") ||\n    isGreetingOrNoise(l) ||\n    isProfileOrMeta(l) ||\n    isSexual(l)\n  );\n}\n\n// ---------------- 1) Prefer inbound if meaningful ----------------\nconst inbound = clean($json.last_inbound_user_message);\nconst inboundLower = lower(inbound);\n\nif (inbound && !isBadTopic(inboundLower)) {\n  return [{ json: { context: inbound } }];\n}\n\n// ---------------- 2) Fallback: scan context rows ----------------\nconst rows = $input.all().map((i) => i.json);\n\nif (!rows.length) {\n  return [{ json: { context: \"everything on your end\" } }];\n}\n\n// Sort latest -> oldest\nrows.sort((a, b) => {\n  const ta = a.created_at ? new Date(a.created_at).getTime() : 0;\n  const tb = b.created_at ? new Date(b.created_at).getTime() : 0;\n  return tb - ta;\n});\n\n// PASS 1: Look for real user intent (skip proactive)\nlet topic = null;\n\nfor (const r of rows) {\n  const type = lower(r.message_type);\n  if (type.startsWith(\"proactive_\")) continue;\n\n  const msg = clean(r.user_message);\n  const l = lower(msg);\n  if (isBadTopic(l)) continue;\n\n  topic = msg;\n  break;\n}\n\n// PASS 2: fallback to assistant response (short & meaningful)\nif (!topic) {\n  for (const r of rows) {\n    const type = lower(r.message_type);\n    if (type.startsWith(\"proactive_\")) continue;\n\n    const msg = clean(r.assistant_response);\n    const l = lower(msg);\n\n    if (isBadTopic(l)) continue;\n    if (msg.length > 200) continue;\n\n    topic = msg;\n    break;\n  }\n}\n\nif (!topic) topic = \"everything on your end\";\nreturn [{ json: { context: topic } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        16
+      ],
+      "id": "2d529479-d123-47f5-b337-6dfb3a8d9668",
+      "name": "Extract Context"
+    },
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $items('Get Last Context Row')[0].json.user_id }}"
+            },
+            {
+              "fieldId": "telegram_chat_id",
+              "fieldValue": "={{ $items('Get Last Context Row')[0].json.telegram_chat_id }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.sid }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "proactive_power_tip"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "assistant_response",
+              "fieldValue": "={{ $json.body }}"
+            },
+            {
+              "fieldId": "message_data",
+              "fieldValue": "={{ \n  {\n    tip_id: $items(\"Select Power Tip & Feedback\")[0].json.tip_id,\n    tip_category: $items(\"Select Power Tip & Feedback\")[0].json.tip_category,\n    tip_body: $items(\"Select Power Tip & Feedback\")[0].json.tip_body,\n    context: $items(\"Extract Context\")[0].json.context ?? null,\n    source: \"seg_a_power_tip_workflow\"\n  } \n}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3552,
+        80
+      ],
+      "id": "a5ba2604-75d0-4f60-8031-cd98535c7026",
+      "name": "Update Conversation"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1264,
+        0
+      ],
+      "id": "b281dd14-588b-45f9-b0d6-2ec8e6835d3a",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "users",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_active",
+              "condition": "eq",
+              "keyValue": "=true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        0
+      ],
+      "id": "1c41c315-3746-4ef2-83bd-016e5992ccfb",
+      "name": "Get Users"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1744,
+        0
+      ],
+      "id": "787d2464-6f90-4b25-90c0-6f2703b8fb96",
+      "name": "3 Hourly Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n\nfunction hoursBetween(a, b) {\n  return Math.abs(a - b) / 36e5;\n}\n\n// ---- 0) Pull inbound row directly (authoritative) ----\nconst inboundRows = $items(\"Get Last Inbound User Message\").map(i => i.json);\n\n// If inbound query returned nothing, no inbound message exists\nif (!inboundRows.length) {\n  return { ...$json, eligible: false, reason: \"no_inbound_message\" };\n}\n\n// Sort newest -> oldest by created_at (since Supabase node cannot ORDER BY)\ninboundRows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\nconst latestInbound = inboundRows[0];\n\nconst last_inbound_user_message_at = latestInbound.created_at || null;\nconst last_inbound_user_message = latestInbound.user_message || null;\n\n// ✅ PATCH: carry identifiers forward for downstream nodes\nconst user_id = latestInbound.user_id || $json.user_id || null;\nconst telegram_chat_id = latestInbound.telegram_chat_id || $json.telegram_chat_id || null;\n\n// ---- 1) Timezone handling ----\nconst timezone = $json.timezone || \"Asia/Kuala_Lumpur\";\nconst localNow = new Date(now.toLocaleString(\"en-US\", { timeZone: timezone }));\n\n// ---- 2) Window open check (Twilio-safe) ----\nif (!last_inbound_user_message_at) {\n  return { ...$json, user_id, telegram_chat_id, eligible: false, reason: \"no_inbound_message\" };\n}\n\nconst lastInbound = new Date(last_inbound_user_message_at);\nconst hoursSinceInbound = hoursBetween(localNow, lastInbound);\n\nif (hoursSinceInbound >= 24) {\n  return { ...$json, user_id, telegram_chat_id, eligible: false, reason: \"window_closed\" };\n}\n\n// ---- 3) Active back-and-forth guard (<60 mins) ----\nif (hoursSinceInbound <= 1) {\n  return { ...$json, user_id, telegram_chat_id, eligible: false, reason: \"active_chat\" };\n}\n\n// ---- 4) Humane hours guard ----\nconst hour = localNow.getHours();\nif (hour < 9 || hour >= 21) {\n  return { ...$json, user_id, telegram_chat_id, eligible: false, reason: \"outside_humane_hours\" };\n}\n\n// ---- 5) Daily cap + 12h guard ----\nif ($json.last_proactive_power_tip_at) {\n  const lastPowerTip = new Date($json.last_proactive_power_tip_at);\n  const sameDay = lastPowerTip.toDateString() === localNow.toDateString();\n  if (sameDay) {\n    return { ...$json, user_id, telegram_chat_id, eligible: false, reason: \"power_tip_sent_today\" };\n  }\n\n  const hoursSinceLastPowerTip = hoursBetween(localNow, lastPowerTip);\n  if (hoursSinceLastPowerTip < 12) {\n    return { ...$json, user_id, telegram_chat_id, eligible: false, reason: \"12h_guard\" };\n  }\n}\n\n// ---- Eligible ----\nreturn {\n  ...$json, // keep upstream fields\n  user_id,\n  telegram_chat_id,\n\n  eligible: true,\n  hoursSinceInbound,\n  localHour: hour,\n\n  // helpful for downstream debugging\n  last_inbound_user_message_at,\n  last_inbound_user_message,\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        16
+      ],
+      "id": "fc8ddaa6-8e2b-4368-bc80-b70fcad7c44e",
+      "name": "Compute Segment A Power Tip Eligibility"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c069e60f-0764-4b72-80b9-67ac29d8e83a",
+              "leftValue": "={{$json.eligible}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        16
+      ],
+      "id": "49d5b9d0-4b7a-4bab-b9f2-dc13ceb22029",
+      "name": "IF Eligible for Power Tip"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "limit": 20,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $items('Get Last Context Row')[0].json.user_id }}"
+            },
+            {
+              "keyName": "message_type",
+              "condition": "eq",
+              "keyValue": "proactive_power_tip"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        0
+      ],
+      "id": "ca2ef45f-fc20-4124-9a1f-97d933567a5d",
+      "name": "Get User Power Tip History",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ara_power_tips",
+        "limit": 20,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "active"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        0
+      ],
+      "id": "dc17a802-3e27-4049-a486-7e6ac8566aa2",
+      "name": "Get Active Power Tips",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ara_user_feedback",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $items('Get Last Context Row')[0].json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        0
+      ],
+      "id": "b202801c-c296-4b36-a844-87a3b9e4dc1e",
+      "name": "Get Last Feedback Asked",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tips = $items(\"Get Active Power Tips\").map(i => i.json);\nconst history = $items(\"Get User Power Tip History\").map(i => i.json);\nhistory.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());\nconst lastFeedback = $items(\"Get Last Feedback Asked\")[0]?.json || null;\n\n// ---- Build helper sets ----\nconst seenTipIds = new Set(history.map(h => h.tip_id).filter(Boolean));\nconst lastCategory = history[0]?.tip_category || null;\n\n// ---- Context tags from earlier Extract Context ----\nconst contextTags = ($json.context_tags || []);\n\n// ---- Scoring function ----\nfunction scoreTip(tip) {\n  let score = 0;\n\n  // Prefer unseen tips\n  if (!seenTipIds.has(tip.tip_id)) score += 50;\n\n  // Prefer context match\n  if (tip.context_tags) {\n    const overlap = tip.context_tags.filter(tag => contextTags.includes(tag));\n    score += overlap.length * 20;\n  }\n\n  // Avoid repeating same category\n  if (tip.category === lastCategory) score -= 30;\n\n  return score;\n}\n\n// ---- Rank tips ----\nconst ranked = tips\n  .map(tip => ({ tip, score: scoreTip(tip) }))\n  .sort((a, b) => b.score - a.score);\n\nif (!ranked.length) {\n  return { skip: true, reason: \"no_active_tips\" };\n}\n\nconst chosenTip = ranked[0].tip;\n\n// ---- Feedback logic ----\nlet askFeedback = false;\nlet feedbackQuestionId = null;\n\nif (lastFeedback?.asked_at) {\n  const daysSince =\n    (Date.now() - new Date(lastFeedback.asked_at)) / 86400000;\n  if (daysSince >= 14) askFeedback = true;\n} else {\n  askFeedback = true; // never asked before\n}\n\n// ---- Output ----\nreturn {\n  tip_id: chosenTip.tip_id,\n  tip_category: chosenTip.category,\n  tip_body: chosenTip.tip_body,\n  askFeedback,\n  feedbackQuestionId, // we’ll fill this in next step\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        0
+      ],
+      "id": "3ae063fd-b127-4eab-addb-ff13bd427d6b",
+      "name": "Select Power Tip & Feedback"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5c004fac-42b2-4735-942f-30b1387c40c4",
+              "leftValue": "={{$json.skip}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2544,
+        16
+      ],
+      "id": "4c489f4e-8053-440a-abd9-068de5abfce7",
+      "name": "IF Tip Selected"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "limit": 20,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            },
+            {
+              "keyName": "message_type",
+              "condition": "eq",
+              "keyValue": "whatsapp"
+            },
+            {
+              "keyName": "user_message",
+              "condition": "neq",
+              "keyValue": "null"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1008,
+        16
+      ],
+      "id": "f8ece066-9b5e-4ddd-a60d-17298c5bf4c6",
+      "name": "Get Last Inbound User Message",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "limit": 20,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $items('Get Users')[0].json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        16
+      ],
+      "id": "4f909923-7441-4620-a09a-0e618e17ea62",
+      "name": "Get Last Context Row"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Takes items from \"Get Last Inbound User Message\" and attaches the latest inbound timestamp\nconst inboundRows = $items(\"Get Last Inbound User Message\").map(i => i.json);\n\nif (!inboundRows.length) {\n  // Keep current item, but mark inbound timestamp missing\n  return { ...$json, last_inbound_user_message_at: null, last_inbound_user_message: null };\n}\n\n// Sort newest -> oldest by created_at\ninboundRows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\nconst latest = inboundRows[0];\n\nreturn {\n  ...$json,\n  last_inbound_user_message_at: latest.created_at || null,\n  last_inbound_user_message: latest.user_message || null,\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        16
+      ],
+      "id": "f50a7795-1e7d-4301-9f9f-d13dc294ff5f",
+      "name": "Attach Last Inbound Timestamp"
+    },
+    {
+      "parameters": {
+        "jsCode": "// We want to keep the current LOOP user item as the base,\n// and only attach inbound message info onto it.\n\n// 1) Base user item (from Loop Over Items)\nconst baseUser = $items(\"Loop Over Items\")[0]?.json || $json;\n\n// 2) Inbound rows from Get Last Inbound User Message\nconst inboundRows = $items(\"Get Last Inbound User Message\").map(i => i.json);\n\nif (!inboundRows.length) {\n  return {\n    ...baseUser,\n    last_inbound_user_message_at: null,\n    last_inbound_user_message: null,\n  };\n}\n\n// Sort newest -> oldest\ninboundRows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\nconst latest = inboundRows[0];\n\nreturn {\n  ...baseUser,\n  last_inbound_user_message_at: latest.created_at || null,\n  last_inbound_user_message: latest.user_message || null,\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        16
+      ],
+      "id": "234ed4f8-6e83-4a49-9f17-b85458e70f8e",
+      "name": "Reattach to User Item"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI-2025-04-14"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are ARA, a human-first WhatsApp AI staff.\n\nROLE\nYou generate ONE proactive Segment A “Power Tip” message for an ACTIVE user.\n\nGOAL (SEGMENT A)\nIncrease habit + deepen usage by teaching ONE useful capability or shortcut.\nMessage must feel human, helpful, and grounded in the user’s recent context.\n\nOUTPUT RULES\n- Output ONE WhatsApp message only (no JSON, no quotes, no extra lines).\n- 1–3 short sentences max.\n- Must be free-form (NOT a template variable fragment).\n- Must include exactly ONE clear “try this” suggestion the user can reply with.\n- Must NOT mention pricing, plans, promotions, features roadmap, or onboarding.\n- Must NOT be a generic check-in (“how’s everything”, “everything on your side”) unless context is truly empty.\n\nLANGUAGE\n- Use the user’s preferred language if provided (lang = ms/en). If missing, use English.\n- If the user message is Malay/rojak, you may reply in light rojak but keep it professional.\n\nHARD GROUNDING (NO EXCEPTIONS)\nYou will receive:\n- selected_tip.tip_body (the tip content you must teach)\n- context (best available recent user intent or topic)\nYou MUST ground the message in:\n- the selected_tip.tip_body (always)\n- and the context if it’s relevant.\nIf context is not relevant, introduce the tip with a natural “By the way”.\n\nCONTEXT USE\n- If selected_tip.requires_context = true, you MUST connect it to the provided context.\n- If requires_context = false and context is relevant, connect it; otherwise use “By the way”.\n\nTONE\nWarm, confident, non-salesy. Helpful like a real assistant.\n\nCALL-TO-ACTION (MANDATORY)\nEnd with a short prompt that encourages a reply, e.g.:\n- “Want me to do that for you?”\n- “Reply ‘yes’ and tell me the time.”\n- “Want an example based on your case?”\n\nNO-GO LIST (STRICT)\nDo NOT:\n- ask for feedback questions here (feedback is a separate message type)\n- include multiple tips\n- include emojis unless it’s subtle (max 1)\n- mention “Segment A/B/C”, “Twilio”, “template”, “24-hour window”\n\nINPUTS YOU WILL RECEIVE (READ-ONLY)\n- user_name\n- lang\n- context\n- selected_tip: { tip_id, category, tip_body, context_tags[], requires_context }\n- feedback_due: boolean\n- last_inbound_user_message (optional)\n\nTASK\nWrite the single best Segment A Power Tip message now.\n"
+            },
+            {
+              "content": "=User: {{$json.user_name}}\nLang: {{$json.lang}}\nContext: {{$json.context}}\nLast inbound: {{$json.last_inbound_user_message}}\nTip: {{$json.selected_tip.tip_body}}\nRequires context: {{$json.selected_tip.requires_context}}\nFeedback due: {{$json.feedback_due}}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        2816,
+        0
+      ],
+      "id": "03874f4c-fe75-402b-acc8-176b5653a85c",
+      "name": "ARA – Segment A Power Tip Writer"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Power Tip Writer Input\n// Expects current item to already contain:\n// - user info (name/lang/timezone optional)\n// - context from Extract Context\n// - selected_tip object from \"Select Power Tip & Feedback\"\n\nconst base = $json;\n\n// You may already have these fields earlier in your pipeline.\n// Adjust field names here only if your workflow uses different names.\nconst user_name =\n  base.user_name ||\n  base.name ||\n  base.full_name ||\n  \"there\";\n\nconst lang = (base.lang || \"en\").toString().toLowerCase();\n\nconst context = (base.context || \"\").toString().trim() || null;\n\nconst last_inbound_user_message =\n  (base.last_inbound_user_message || \"\").toString().trim() || null;\n\n// selected_tip should be produced by your selector node\n// Example: base.selected_tip = { tip_id, category, tip_body, context_tags, requires_context }\nconst selected_tip = base.selected_tip || null;\n\n// feedback_due is a boolean your selector can set (even if we don't ask it here)\nconst feedback_due = !!base.feedback_due;\n\nif (!selected_tip || !selected_tip.tip_body) {\n  // If selector failed, stop cleanly (downstream IF Tip Selected should prevent reaching here anyway)\n  return [{ json: { ...base, error: \"no_selected_tip_for_writer\" } }];\n}\n\nreturn [\n  {\n    json: {\n      user_name,\n      lang,\n      context,\n      last_inbound_user_message,\n      selected_tip: {\n        tip_id: selected_tip.tip_id,\n        category: selected_tip.category,\n        tip_body: selected_tip.tip_body,\n        context_tags: selected_tip.context_tags || [],\n        requires_context: !!selected_tip.requires_context,\n      },\n      feedback_due,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        0
+      ],
+      "id": "f9acb81e-1842-4585-9557-77f87ad2396a",
+      "name": "Prepare Power Tip Writer Input"
+    },
+    {
+      "parameters": {
+        "from": "+601125911400",
+        "to": "={{ $items('Get Last Context Row')[0].json.telegram_chat_id }}",
+        "toWhatsapp": true,
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        3168,
+        0
+      ],
+      "id": "136ec85d-0573-4590-853f-7e109dbea4f4",
+      "name": "Send an SMS/MMS/WhatsApp message"
+    },
+    {
+      "parameters": {
+        "jsCode": "// INPUT: many conversation rows for this user (from Get Last Inbound User Message)\n// OUTPUT: exactly ONE item (latest by created_at). If none, output empty list.\n\nconst rows = $input.all().map(i => i.json);\n\nif (!rows.length) return []; // no inbound rows found\n\nrows.sort((a, b) => {\n  const ta = a.created_at ? new Date(a.created_at).getTime() : 0;\n  const tb = b.created_at ? new Date(b.created_at).getTime() : 0;\n  return tb - ta;\n});\n\nreturn [{ json: rows[0] }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        0
+      ],
+      "id": "8ba16a8e-713e-4505-b722-b7bf340adacd",
+      "name": "Pick Latest Inbound (1 row only)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute start-of-today timestamp in user's timezone (timestamptz string)\n// Output: start_of_today (e.g. \"2025-12-22T00:00:00+08:00\")\n// IMPORTANT: do NOT overwrite user_id / telegram_chat_id — keep the current loop item.\n\nconst tz = ($json.timezone || \"Asia/Kuala_Lumpur\").toString();\n\n// Get YYYY-MM-DD in that timezone safely\nconst parts = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: tz,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n}).formatToParts(new Date());\n\nconst y = parts.find(p => p.type === \"year\")?.value;\nconst m = parts.find(p => p.type === \"month\")?.value;\nconst d = parts.find(p => p.type === \"day\")?.value;\n\nif (!y || !m || !d) {\n  return [{ json: { ...$json, start_of_today: null, _err: \"cannot_compute_date_parts\" } }];\n}\n\n// Malaysia-only assumption (UTC+8). If later you support other offsets, compute dynamically.\nconst start_of_today = `${y}-${m}-${d}T00:00:00+08:00`;\n\nreturn [\n  {\n    json: {\n      ...$json,           // <-- keeps current user_id + telegram_chat_id from the loop item\n      start_of_today,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        -80
+      ],
+      "id": "ba001d04-48f2-4a8e-9cef-ae66f5227d94",
+      "name": "Compute Start of Today"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "limit": 20,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.user_id }}"
+            },
+            {
+              "keyName": "message_type",
+              "condition": "eq",
+              "keyValue": "proactive_power_tip"
+            },
+            {
+              "keyName": "created_at",
+              "condition": "gte",
+              "keyValue": "={{ $json.start_of_today }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        816,
+        -80
+      ],
+      "id": "e31f4aba-6a42-4295-9093-ecb3a50da824",
+      "name": "Get Power Tip Sent Today",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8f89d507-b605-45dc-b15d-3b03aca448ca",
+              "leftValue": "={{ !!$items(\"Get Power Tip Sent Today\")[0]?.json?.id }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1024,
+        -80
+      ],
+      "id": "db7e083b-cf9d-4288-b09b-4209b38b3eee",
+      "name": "IF Already Sent Today?"
+    }
+  ],
+  "connections": {
+    "Extract Context": {
+      "main": [
+        [
+          {
+            "node": "Compute Segment A Power Tip Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get Last Inbound User Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Users": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 Hourly Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Segment A Power Tip Eligibility": {
+      "main": [
+        [
+          {
+            "node": "IF Eligible for Power Tip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Eligible for Power Tip": {
+      "main": [
+        [
+          {
+            "node": "Compute Start of Today",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Power Tip History": {
+      "main": [
+        [
+          {
+            "node": "Pick Latest Inbound (1 row only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Power Tips": {
+      "main": [
+        [
+          {
+            "node": "Get Last Feedback Asked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Feedback Asked": {
+      "main": [
+        [
+          {
+            "node": "Select Power Tip & Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Power Tip & Feedback": {
+      "main": [
+        [
+          {
+            "node": "Prepare Power Tip Writer Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Tip Selected": {
+      "main": [
+        [
+          {
+            "node": "ARA – Segment A Power Tip Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Inbound User Message": {
+      "main": [
+        [
+          {
+            "node": "Reattach to User Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Context Row": {
+      "main": [
+        [
+          {
+            "node": "Extract Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Last Inbound Timestamp": {
+      "main": [
+        [
+          {
+            "node": "Get Last Context Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reattach to User Item": {
+      "main": [
+        [
+          {
+            "node": "Attach Last Inbound Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ARA – Segment A Power Tip Writer": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Power Tip Writer Input": {
+      "main": [
+        [
+          {
+            "node": "IF Tip Selected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Latest Inbound (1 row only)": {
+      "main": [
+        [
+          {
+            "node": "Get Active Power Tips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Start of Today": {
+      "main": [
+        [
+          {
+            "node": "Get Power Tip Sent Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Power Tip Sent Today": {
+      "main": [
+        [
+          {
+            "node": "IF Already Sent Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Already Sent Today?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get User Power Tip History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Triggers at 9.05 AM Daily": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

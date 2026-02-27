@@ -1,0 +1,1177 @@
+{
+  "id": "YBF1saWGoiTXwtiz",
+  "name": "ARA | Window Keeper | Engagement | v1.0",
+  "active": 0,
+  "createdAt": "2026-01-10 20:28:00.498",
+  "updatedAt": "2026-01-25 14:34:05.410",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "16733983-3513-41f6-b7fc-feb024a93431",
+      "name": "Cron Trigger (Hourly)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  u.id as user_id,\n  u.telegram_id as wa_number,\n  u.telegram_id as telegram_chat_id,\n  coalesce(u.current_timezone, u.home_timezone, u.timezone, 'Asia/Kuala_Lumpur') as timezone,\n  coalesce(u.preferred_language, 'en') as preferred_language,\n  u.preferred_name,\n  u.first_name,\n  u.telegram_username,\n  nullif(trim(coalesce(u.preferred_name, u.first_name, u.telegram_username, '')), '') as display_name\nfrom public.users u\nwhere u.is_active = true\n  and u.telegram_id is not null\n  and u.telegram_id ~ '^[1-9][0-9]{7,14}$';",
+        "options": {}
+      },
+      "id": "28edc1de-e483-4e91-9fc3-275753542bdd",
+      "name": "Fetch Candidate Users (WK)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "7d3a423d-5cab-449a-bbd9-c32a38f5e84f",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select max(created_at) as last_inbound_user_message_at\nfrom public.conversations\nwhere user_id = $1\n  and user_message is not null;\n",
+        "options": {
+          "queryReplacement": "={{$json.user_id}}"
+        }
+      },
+      "id": "6feba516-974c-460c-877d-df5d69570ccc",
+      "name": "Get Last Inbound (WK)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const user = $node[\"Split In Batches\"].json;\nconst inbound = $node[\"Get Last Inbound (WK)\"].json;\n\n// ================= WK TEST OVERRIDE =================\nconst WK_TEST_USER_IDS = new Set([\n  \"2a4e5985-1b49-4cb6-bfc0-a85b296d8f30\" // Joe\n]);\n\nconst isWkTestUser = WK_TEST_USER_IDS.has(user.user_id);\n// ===================================================\n\n\n\nconst lastInbound = inbound.last_inbound_user_message_at;\nif (!lastInbound) {\n  return { ...user, wk_eligible: false, wk_reason: \"no_inbound\" };\n}\n\nconst tz = (user.timezone && user.timezone.trim()) ? user.timezone.trim() : \"Asia/Kuala_Lumpur\";\n\nfunction localHour(date, timeZone) {\n  const fmt = new Intl.DateTimeFormat(\"en-GB\", { timeZone, hour: \"2-digit\", hour12: false });\n  return Number(fmt.format(date));\n}\n\nfunction localYMD(date, timeZone) {\n  const fmt = new Intl.DateTimeFormat(\"en-GB\", { timeZone, year: \"numeric\", month: \"2-digit\", day: \"2-digit\" });\n  const parts = fmt.formatToParts(date);\n  const m = Object.fromEntries(parts.map(p => [p.type, p.value]));\n  return `${m.year}-${m.month}-${m.day}`;\n}\n\nconst now = new Date();\nconst lastInboundDate = new Date(lastInbound);\n\nconst minutesSinceInbound = (now - lastInboundDate) / 60000;\nconst hoursSinceInbound = minutesSinceInbound / 60;\n\nconst isSegmentAWindow = hoursSinceInbound < 24;\nconst notActiveChat = minutesSinceInbound > 60;\n\nconst hourLocal = localHour(now, tz);\nconst isLocal8pm = hourLocal === 20;\n\n//const wk_eligible = isSegmentAWindow && notActiveChat && isLocal8pm;\n\n//============================for testing==========\nconst wk_eligible =\n  isWkTestUser || (isSegmentAWindow && notActiveChat && isLocal8pm);\n//=========================================\n\nreturn {\n  ...user,\n  tz_effective: tz,\n  local_hour: hourLocal,\n  local_ymd: localYMD(now, tz),\n  last_inbound_user_message_at: lastInbound,\n  minutesSinceInbound,\n  hoursSinceInbound,\n  isSegmentAWindow,\n  notActiveChat,\n  isLocal8pm,\n  wk_eligible\n};"
+      },
+      "id": "613983e2-09e0-4c9d-844e-c7701605475e",
+      "name": "Compute WK Eligibility (8pm local + SegA + >60m)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.wk_eligible}}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4dd9a955-0d81-4c0a-9eed-e6942bd67f3b",
+      "name": "IF: WK Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select max(created_at) as last_proactive_today_at\nfrom public.conversations\nwhere user_id = $1\n  and message_type like 'proactive_%'\n  and (created_at at time zone $2)::date = (now() at time zone $2)::date;\n",
+        "options": {
+          "queryReplacement": "={{$json.user_id}}, {{$json.tz_effective}}"
+        }
+      },
+      "id": "2fef8cb5-e1e6-46e6-accd-a7a964ca01be",
+      "name": "Check Proactive Sent Today (Any)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1920,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.last_proactive_today_at}}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "id": "9cb89c5c-3f45-4502-864b-be6616e0dc58"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "694aa94d-9295-4723-9af4-f2d50fce48da",
+      "name": "IF: Proactive Already Sent Today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select created_at, message_type, user_message, assistant_response\nfrom public.conversations\nwhere user_id = $1\n  and message_type = 'whatsapp'\norder by created_at desc\nlimit 10;\n",
+        "options": {
+          "queryReplacement": "={{ $('IF: WK Eligible?').item.json.user_id }}"
+        }
+      },
+      "id": "5e20484d-d188-4c9b-98ed-fc6ae2b328d0",
+      "name": "Get Recent Context (WK)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Run Once for All Items\nconst base = $node[\"Compute WK Eligibility (8pm local + SegA + >60m)\"].json;\nconst rows = $input.all().map(i => i.json);\n\n// Ensure newest -> oldest if needed\nrows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));\n\nreturn [{\n  json: {\n    ...base,\n    recent_context: rows\n  }\n}];"
+      },
+      "id": "1b9b5c9c-9747-49cf-8e0e-07838b80d5cf",
+      "name": "Build WK Context Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\nconst rows = Array.isArray(item.recent_context) ? item.recent_context : [];\n\nconst clean = (s) => (s || \"\").toString().replace(/\\s+/g, \" \").trim();\nconst lower = (s) => clean(s).toLowerCase();\n\n// Expanded boring set (critical patch)\nconst BORING = new Set([\n  \"ok\",\"okay\",\"k\",\"kk\",\n  \"yes\",\"yes pls\",\"yes please\",\"yup\",\"ya\",\"yeah\",\"sure\",\"alright\",\"all right\",\n  \"no\",\"nope\",\n  \"pls\",\"please\",\n  \"thanks\",\"thank you\",\"tq\",\"thx\",\n  \"done\",\"great\",\"nice\",\"good\",\n  \"hi\",\"hello\",\"hey\"\n]);\n\nfunction isMeaningful(s) {\n  const t = lower(s);\n  if (!t) return false;\n  if (t.length < 6) return false;\n  if (BORING.has(t)) return false;\n  return true;\n}\n\n// 1) Find last meaningful message from recent_context\nlet lastMeaningful = \"\";\nfor (let i = rows.length - 1; i >= 0; i--) {\n  const m = clean(rows[i]?.user_message);\n  if (isMeaningful(m)) { lastMeaningful = m; break; }\n}\n\n// 2) Fallback to last_inbound_user_message ONLY if meaningful (patch)\nif (!lastMeaningful && isMeaningful(item.last_inbound_user_message)) {\n  lastMeaningful = clean(item.last_inbound_user_message);\n}\n\nconst blob = lower(lastMeaningful);\n\n// 3) Anchor mapping (your original logic preserved)\nlet anchor = \"\";\nif (blob.includes(\"assignment\")) anchor = \"your assignment\";\nelse if (blob.includes(\"proposal\") || blob.includes(\"pitch\")) anchor = \"your proposal\";\nelse if (blob.includes(\"meeting\") || blob.includes(\"call\")) anchor = \"your meeting\";\nelse if (blob.includes(\"invoice\") || blob.includes(\"payment\")) anchor = \"payments\";\nelse if (blob.includes(\"wedding\")) anchor = \"the wedding prep\";\nelse if (lastMeaningful) anchor = lastMeaningful.slice(0, 40) + (lastMeaningful.length > 40 ? \"…\" : \"\");\nelse anchor = \"today\";\n\n// 4) Final safety clamp (patch): never allow boring/garbage anchors\nconst anchorLower = lower(anchor);\nif (!anchor || anchorLower.length < 4 || BORING.has(anchorLower) || anchorLower.includes(\"{{\") || anchorLower.includes(\"$json\")) {\n  anchor = \"today\";\n}\n\n// 5) Authoritative overwrite\nitem.context_anchor = anchor;\nitem.last_meaningful_user_message = lastMeaningful;\n\nreturn [{ json: item }];\n"
+      },
+      "id": "d653e057-2286-468f-b305-2fd4855fb522",
+      "name": "Derive Context Anchor (WK)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI-2025-04-14"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You write ONE short WhatsApp message as a friendly, human day wrap-up.\n\nHard rules:\n- Ask EXACTLY ONE question.\n- The question MUST include an explicit short-reply format in the same sentence, e.g.:\n  - \"Done or not yet\"\n  - \"Done or still working\"\n  - \"Yes or no\"\n  - \"A or B\"\n- The reply options must be 2–3 choices max, 1–3 words each.\n- Must be relevant to the provided context_anchor if possible.\n- Do NOT teach, do NOT explain features, do NOT market or sell.\n- Do NOT mention segments, windows, 24 hours, automation, pricing, plans.\n- Max 220 characters. At most one emoji.\n- Output ONLY the message text (no quotes, no labels).\n"
+            },
+            {
+              "content": "=Name: {{ $json.display_name || $json.display_name || $json.telegram_username || '' }}\nLanguage: {{ $json.preferred_language || 'en' }}\nContext anchor: {{ $json.context_anchor || 'today' }}\n\nWrite the message now."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "543878a5-64af-4af9-9d66-0c00d9abd1f8",
+      "name": "Generate WK Message (Micro-Writer LLM)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        3520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// Try common fields first\nlet text =\n  (item.wk_message ?? \"\").toString().trim() ||\n  (item.text ?? \"\").toString().trim() ||\n  (item.output_text ?? \"\").toString().trim();\n\n// Parse structured output from Responses API style\nif (!text) {\n  try {\n    const out0 = item.output?.[0];\n    const content = Array.isArray(out0?.content) ? out0.content : [];\n    const outText = content.find(c => c?.type === \"output_text\")?.text;\n    if (typeof outText === \"string\") text = outText.trim();\n  } catch (e) {}\n}\n\n// Fallback: sometimes node returns `output` as plain string\nif (!text && typeof item.output === \"string\") text = item.output.trim();\n\nitem.wk_message = text;\nreturn [{ json: item }];"
+      },
+      "id": "173e615f-fa98-4857-ae08-0c85a5affcda",
+      "name": "Extract WK Message Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\nconst msg = (item.wk_message || \"\").toString().trim();\n\nconst forbidden = [\"segment\", \"24 hour\", \"24hours\", \"window\", \"pricing\", \"plan\", \"promo\", \"feature\", \"automation\"];\nconst hasForbidden = forbidden.some(w => msg.toLowerCase().includes(w));\n\nconst qCount = (msg.match(/\\?/g) || []).length;\nconst okLength = msg.length > 0 && msg.length <= 280;\n\nconst valid = okLength && qCount === 1 && !hasForbidden;\n\nitem.wk_message_final = msg;\nitem.wk_message_valid = valid;\n\nreturn [{ json: item }];"
+      },
+      "id": "fbca1e37-9d97-402d-b2e0-616f94bd1cd1",
+      "name": "Validate WK Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.wk_message_valid}}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "7bb34038-1970-4b6d-8a6e-1e9ae6e5da53"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3eaed30a-1401-4640-a813-584b8414d401",
+      "name": "IF: Message Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\n\nconst anchor = (item.context_anchor || \"today\").toString().trim();\nlet msg;\n\nif (anchor && anchor !== \"today\") {\n  msg = `How did ${anchor} go today — done, or still on it?`;\n} else {\n  msg = \"How was your day — good, busy, or tough?\";\n}\n\nitem.wk_message_final = msg;\nitem.wk_message_valid = true;\nreturn [{ json: item }];"
+      },
+      "id": "d2669f6f-dc96-407a-bf0e-ec5c4d559edc",
+      "name": "Set Fallback WK Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4800,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "from": "+601125911400",
+        "to": "={{ $('Derive Context Anchor (WK)').item.json.wa_number }}",
+        "toWhatsapp": true,
+        "message": "={{$json.wk_message_final}}",
+        "options": {
+          "statusCallback": "https://engine.araaisolution.com/webhook/twilio-status"
+        }
+      },
+      "id": "4426c172-2432-46a1-baf1-c0720333af49",
+      "name": "Send WhatsApp (WK Free-form)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        5232,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "conversations",
+          "cachedResultName": "conversations"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $('Derive Context Anchor (WK)').item.json.user_id }}",
+            "telegram_chat_id": "={{ $('Derive Context Anchor (WK)').item.json.telegram_chat_id }}",
+            "message_id": "={{$json.sid}}",
+            "message_type": "proactive_window_keeper",
+            "assistant_response": "={{$json.body}}",
+            "created_at": "={{$now}}",
+            "message_data": "={{ { mode: 'wk_day_wrap', context_anchor: $json.context_anchor, local_ymd: $json.local_ymd, local_hour: $json.local_hour } }}",
+            "is_complete": false,
+            "onboarding_sent": false,
+            "pending_action_resolved": false
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_chat_id",
+              "displayName": "telegram_chat_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_type",
+              "displayName": "message_type",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_message",
+              "displayName": "user_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_data",
+              "displayName": "message_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assistant_response",
+              "displayName": "assistant_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "context_summary",
+              "displayName": "context_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "emotion_detected",
+              "displayName": "emotion_detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_taken",
+              "displayName": "action_taken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "is_complete",
+              "displayName": "is_complete",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "topics_discussed",
+              "displayName": "topics_discussed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "people_mentioned",
+              "displayName": "people_mentioned",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "onboarding_sent",
+              "displayName": "onboarding_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pending_action_type",
+              "displayName": "pending_action_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "pending_action_payload",
+              "displayName": "pending_action_payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "pending_action_resolved",
+              "displayName": "pending_action_resolved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "435426ee-2417-405e-8d5d-ba15d102636f",
+      "name": "Log to Conversations (WK)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// OBS | ALE Post-Send Observer (WK)\n// Input: Twilio Send node output ($json.sid, $json.body, etc)\n// Also reads: Derive Context Anchor (WK) for user_id + whatsapp id\n\nconst tw = $json || {};\n\n// Pull anchor from the named node (WK)\nconst anchor = $('Derive Context Anchor (WK)')?.item?.json || {};\n\n// Helpers\nconst clean = (s) => (s ?? \"\").toString().replace(/\\s+/g, \" \").trim();\n\n// Extract outbound text from Twilio node output\nconst text = clean(tw.body || tw.message || tw.text || \"\");\n\n// You said: treat users.telegram_id as whatsapp id (in your system this is stored in telegram_id / telegram_chat_id)\nconst channelUserId = clean(anchor.telegram_chat_id || anchor.wa_number || anchor.telegram_id || \"\");\n\n// v1.1.1 context awareness\nconst contextSource = \"window_keeper\";\n\n// Runtime-safe workflow/node names (avoid $node.name which breaks)\nconst workflowName =\n  (typeof $workflow !== \"undefined\" && $workflow && $workflow.name) ? $workflow.name : null;\n\nconst nodeName =\n  (this && typeof this.getNode === \"function\" && this.getNode() && this.getNode().name)\n    ? this.getNode().name\n    : \"OBS | ALE Post-Send Observer (WK)\";\n\n// WK messages are proactive check-ins, so we log a base OUTBOUND_OBS event\nconst baseSnapshot = {\n  twilio_sid: tw.sid || null,\n  message_intent: \"checkin\",\n  expected_reply: true,\n  expected_reply_within_hours: 24,\n  wk_mode: \"engagement\",\n  local_ymd: anchor.local_ymd || null,\n  local_hour: anchor.local_hour || null,\n};\n\n// Detect anomalies (objective, regex-level)\nconst anomalies = [];\n\n// A) Token leaks / embarrassing strings\nconst hasNullish = /\\b(null|undefined|nan)\\b/i.test(text);\nif (hasNullish) anomalies.push({ signature: \"OUTBOUND_HAS_NULL_TOKEN\", severity: \"high\", event_type: \"UX_ANOMALY\" });\n\n// B) Unresolved placeholders / template tokens\nconst hasUnresolvedToken = /(\\{\\{|\\}\\}|%[A-Z_]+%|\\[\\[.*?\\]\\])/.test(text);\nif (hasUnresolvedToken) anomalies.push({ signature: \"OUTBOUND_HAS_UNRESOLVED_TOKEN\", severity: \"high\", event_type: \"TEMPLATE_RENDER_ANOMALY\" });\n\n// C) Broken greetings (e.g., \"Hi !\", \"Hello !\", \"Hai !\", or just \"Hi\")\nconst brokenGreeting =\n  /^(hi|hello|hai)\\s*[,!]*\\s*$/i.test(text) ||\n  (/^(hi|hello|hai)\\s+[,!]/i.test(text) && /^(hi|hello|hai)\\s+[,!]\\s*$/i.test(text));\nif (brokenGreeting) anomalies.push({ signature: \"BROKEN_GREETING\", severity: \"high\", event_type: \"UX_ANOMALY\" });\n\n// D) Empty or near-empty\nconst emptyOrNearEmpty = text.length < 3;\nif (emptyOrNearEmpty) anomalies.push({ signature: \"OUTBOUND_EMPTY_OR_TINY\", severity: \"high\", event_type: \"UX_ANOMALY\" });\n\n// “Wrong grammar” (v1: objective artifacts only)\nconst duplicateWord = /\\b([A-Za-z]{2,})\\s+\\1\\b/i.test(text);\nif (duplicateWord) anomalies.push({ signature: \"GRAMMAR_DUPLICATE_WORD\", severity: \"med\", event_type: \"UX_ANOMALY\" });\n\nconst weirdSpacing = /\\s+[,.!?]/.test(text) || /[,.!?]\\s{2,}/.test(text);\nif (weirdSpacing) anomalies.push({ signature: \"GRAMMAR_WEIRD_SPACING\", severity: \"low\", event_type: \"UX_ANOMALY\" });\n\nconst excessivePunct = /([!?])\\1{2,}/.test(text);\nif (excessivePunct) anomalies.push({ signature: \"GRAMMAR_EXCESSIVE_PUNCT\", severity: \"low\", event_type: \"UX_ANOMALY\" });\n\n// Build standard ALE events\nconst mkEvent = ({ event_type, signature, severity, track_immunity }) => ({\n  channel: \"whatsapp\",\n  channel_user_id: channelUserId || null,\n  user_id: anchor.user_id || null,\n  event_type,\n  signature,\n  severity,\n  workflow: workflowName,\n  node: nodeName,\n  message_direction: \"outbound\",\n  context_source: contextSource,\n  message_text: text || null,\n  track_immunity,\n  snapshot: {\n    ...baseSnapshot,\n    anomalies_detected: anomalies.map(a => a.signature),\n    anchor_hint: {\n      telegram_chat_id: anchor.telegram_chat_id || null,\n    },\n    twilio_meta: {\n      from: tw.from || null,\n      to: tw.to || null,\n      status: tw.status || null,\n      error_code: tw.error_code || null,\n      error_message: tw.error_message || null,\n    }\n  }\n});\n\n// Always log the base send observation (used later for silence detection)\nconst out = [\n  mkEvent({\n    event_type: \"OUTBOUND_OBS\",\n    signature: \"OUTBOUND_SENT\",\n    severity: \"low\",\n    track_immunity: false\n  })\n];\n\n// Log each anomaly as its own row\nfor (const a of anomalies) {\n  out.push(mkEvent({\n    event_type: a.event_type,\n    signature: a.signature,\n    severity: a.severity,\n    track_immunity: true\n  }));\n}\n\nreturn out.map(x => ({ json: x }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5392,
+        -224
+      ],
+      "id": "e7ca9314-60a3-42f6-9032-2e4a22582efb",
+      "name": "OBS | ALE Post-Send Observer (WK)"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ale_events",
+          "mode": "list",
+          "cachedResultName": "ale_events"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "created_at": "={{$now}}",
+            "channel_user_id": "={{ $json.channel_user_id }}",
+            "channel": "={{ $json.channel }}",
+            "event_type": "={{ $json.event_type }}",
+            "signature": "={{ $json.signature }}",
+            "severity": "={{ $json.severity }}",
+            "workflow": "={{ $json.workflow }}",
+            "node": "={{ $json.node }}",
+            "message_direction": "={{ $json.message_direction }}",
+            "context_source": "={{ $json.context_source }}",
+            "message_text": "={{ $json.message_text }}",
+            "snapshot": "={{ $json.snapshot }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "channel_user_id",
+              "displayName": "channel_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "event_type",
+              "displayName": "event_type",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "signature",
+              "displayName": "signature",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "workflow",
+              "displayName": "workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "node",
+              "displayName": "node",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_direction",
+              "displayName": "message_direction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "context_source",
+              "displayName": "context_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_text",
+              "displayName": "message_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "snapshot",
+              "displayName": "snapshot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4b1c3b42-4450-461c-8b66-fafd9d0b8808",
+      "name": "DB | Insert ALE Events | Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5952,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0a8bd962-f685-4331-a6c7-14498b7adab4",
+              "leftValue": "={{ $json.track_immunity === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5664,
+        -224
+      ],
+      "id": "1b27bbc7-65bf-455b-9cc5-914e15ee56f0",
+      "name": "DECIDE | Track Immunity?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.ale_known_anomalies (signature, first_seen_at, last_seen_at, count, status)\nvalues (\n  '{{ $json.signature }}',\n  now(),\n  now(),\n  1,\n  'open'\n)\non conflict (signature)\ndo update set\n  last_seen_at = now(),\n  count = public.ale_known_anomalies.count + 1;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6064,
+        -176
+      ],
+      "id": "a4d4e666-1800-4aa0-9ba6-86bc24b6533f",
+      "name": "DB | Upsert ALE Known Anomalies | Supabase"
+    },
+    {
+      "parameters": {
+        "content": "## Contain test code"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1280,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "40fbf913-cb39-4c0a-bb2f-e28a7d2daea1",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/AC_REDACTED/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+601125911400"
+            },
+            {
+              "name": "To",
+              "value": "={{ 'whatsapp:+' + String($('Derive Context Anchor (WK)').item.json.wa_number).replace(/\\D/g,'') }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.wk_message_final }}"
+            },
+            {
+              "name": "StatusCallback",
+              "value": "=https://engine.araaisolution.com/webhook/twilio-status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4976,
+        -80
+      ],
+      "id": "032bcf29-d811-4b26-b84e-1a03427837cf",
+      "name": "Send WhatsApp (WK Free-form) [HTTP]"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json || {};\n\nreturn [{\n  json: {\n    sid: r.sid || null,\n    status: r.status || null,\n    error_code: r.error_code ?? null,\n    error_message: r.error_message ?? null,\n    from: r.from || null,\n    to: r.to || null,\n    status_callback: r.status_callback ?? null,\n    raw: r,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5184,
+        -80
+      ],
+      "id": "c96070f8-eccd-47b5-82ff-cf062b29dc59",
+      "name": "NORM | Twilio Send Result"
+    }
+  ],
+  "connections": {
+    "Cron Trigger (Hourly)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Candidate Users (WK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Candidate Users (WK)": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get Last Inbound (WK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Inbound (WK)": {
+      "main": [
+        [
+          {
+            "node": "Compute WK Eligibility (8pm local + SegA + >60m)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute WK Eligibility (8pm local + SegA + >60m)": {
+      "main": [
+        [
+          {
+            "node": "IF: WK Eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: WK Eligible?": {
+      "main": [
+        [
+          {
+            "node": "Check Proactive Sent Today (Any)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Proactive Sent Today (Any)": {
+      "main": [
+        [
+          {
+            "node": "IF: Proactive Already Sent Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Proactive Already Sent Today?": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Recent Context (WK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Context (WK)": {
+      "main": [
+        [
+          {
+            "node": "Build WK Context Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build WK Context Payload": {
+      "main": [
+        [
+          {
+            "node": "Derive Context Anchor (WK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Derive Context Anchor (WK)": {
+      "main": [
+        [
+          {
+            "node": "Generate WK Message (Micro-Writer LLM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate WK Message (Micro-Writer LLM)": {
+      "main": [
+        [
+          {
+            "node": "Extract WK Message Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract WK Message Text": {
+      "main": [
+        [
+          {
+            "node": "Validate WK Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate WK Message": {
+      "main": [
+        [
+          {
+            "node": "IF: Message Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Message Valid?": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp (WK Free-form) [HTTP]",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Fallback WK Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Fallback WK Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp (WK Free-form) [HTTP]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp (WK Free-form)": {
+      "main": [
+        []
+      ]
+    },
+    "Log to Conversations (WK)": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OBS | ALE Post-Send Observer (WK)": {
+      "main": [
+        [
+          {
+            "node": "DECIDE | Track Immunity?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB | Insert ALE Events | Supabase": {
+      "main": [
+        []
+      ]
+    },
+    "DECIDE | Track Immunity?": {
+      "main": [
+        [
+          {
+            "node": "DB | Upsert ALE Known Anomalies | Supabase",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DB | Insert ALE Events | Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DB | Insert ALE Events | Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp (WK Free-form) [HTTP]": {
+      "main": [
+        [
+          {
+            "node": "NORM | Twilio Send Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NORM | Twilio Send Result": {
+      "main": [
+        [
+          {
+            "node": "OBS | ALE Post-Send Observer (WK)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Conversations (WK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Cron Trigger (Hourly)": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

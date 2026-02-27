@@ -1,0 +1,576 @@
+{
+  "id": "WG554chVjFXlViWS",
+  "name": "ARA | Core | Error Handler | v1.1",
+  "active": 0,
+  "createdAt": "2026-02-01 08:20:50.752",
+  "updatedAt": "2026-02-03 08:10:15.815",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "5e545939-5f5c-40c9-ac90-f2034ae4293e",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2784,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst executionId = item?.execution?.id ?? null;\n\n// derive base domain from execution.url\nlet baseUrl = 'https://engine.araaisolution.com';\ntry {\n  const execUrl = item?.execution?.url;\n  if (execUrl) {\n    const u = new URL(execUrl);\n    baseUrl = `${u.protocol}//${u.host}`;\n  }\n} catch (e) {}\n\nconst sourceWorkflowName = item?.workflow?.name ?? '';\nconst isFromErrorHandler = /error handler/i.test(sourceWorkflowName);\n\nreturn [{\n  json: {\n    ...item,\n    baseUrl,\n    executionId: String(executionId ?? ''),\n    sourceWorkflowName,\n    isFromErrorHandler\n  }\n}];\n"
+      },
+      "id": "8d907af9-37ed-42b2-b291-ca7f389ce224",
+      "name": "Prepare Meta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2560,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "loop_guard",
+              "leftValue": "={{ $json.isFromErrorHandler }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "isTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1f8a56e7-9d71-4542-81db-98e2df782dc1",
+      "name": "IF Loop Guard (stop if source is Error Handler)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2336,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\n\nfunction deepFindFirstByKey(obj, keySet) {\n  const stack = [obj];\n  while (stack.length) {\n    const cur = stack.pop();\n    if (!cur || typeof cur !== 'object') continue;\n\n    if (!Array.isArray(cur)) {\n      for (const k of Object.keys(cur)) {\n        if (keySet.has(k) && (typeof cur[k] === 'string' || typeof cur[k] === 'number')) {\n          return { key: k, value: cur[k] };\n        }\n      }\n    }\n\n    if (Array.isArray(cur)) {\n      for (const v of cur) stack.push(v);\n    } else {\n      for (const v of Object.values(cur)) stack.push(v);\n    }\n  }\n  return null;\n}\n\nconst keyTelegramId = new Set(['telegram_chat_id', 'telegram_id', 'telegramId', 'chat_id', 'chatId', 'from', 'waId', 'phone']);\nconst keyUserId = new Set(['user_id', 'userId']);\n\nconst telegramHit = deepFindFirstByKey(root, keyTelegramId);\nconst userIdHit = deepFindFirstByKey(root, keyUserId);\n\nlet telegram_id = telegramHit?.value ? String(telegramHit.value).trim() : null;\nlet user_id = userIdHit?.value ? String(userIdHit.value).trim() : null;\n\n// Normalize whatsapp recipient\nfunction normalizeTwilioTo(val) {\n  if (!val) return null;\n  let s = String(val).trim();\n  if (!s) return null;\n\n  // If already whatsapp:\n  if (s.toLowerCase().startsWith('whatsapp:')) {\n    const rest = s.slice(9).trim();\n    if (rest.startsWith('+')) return 'whatsapp:' + rest;\n    if (/^60\\d+$/.test(rest)) return 'whatsapp:+' + rest;\n    return null;\n  }\n\n  // If +E164\n  if (s.startsWith('+')) return 'whatsapp:' + s;\n\n  // If 60xxxxxxxxx\n  if (/^60\\d+$/.test(s)) return 'whatsapp:+' + s;\n\n  return null;\n}\n\nconst twilio_to = normalizeTwilioTo(telegram_id);\n\n// UUID guard\nfunction isUuid(v) {\n  if (!v) return false;\n  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(String(v));\n}\n\nreturn [{\n  json: {\n    execution_raw: root,\n    telegram_id,\n    user_id,\n    user_id_is_uuid: isUuid(user_id),\n    twilio_to\n  }\n}];"
+      },
+      "id": "d06ae783-4ed4-4045-9cf4-78f948557df2",
+      "name": "Extract Identifiers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1664,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has_to",
+              "leftValue": "={{ $json.twilio_to }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "96134f8e-d70b-4a45-8e1a-9d1b98bb05fa",
+      "name": "IF Has WhatsApp Recipient",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has_uuid",
+              "leftValue": "={{ $json.user_id_is_uuid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "isTrue"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6fab0df8-f56e-4812-a2e8-71c924df2244",
+      "name": "IF Has Valid user_id UUID",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1216,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select preferred_language as lang\nfrom public.users\nwhere id = $1\nlimit 1;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ $json.user_id }}"
+        }
+      },
+      "id": "2acc6899-5cbf-4f9a-81d1-fbbbcad1a66d",
+      "name": "DB: Get Preferred Language by UUID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        336
+      ],
+      "notesInFlow": true,
+      "notes": "Attach your Supabase Postgres credential here.\nThis query ONLY runs when user_id is a valid UUID."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select preferred_language as lang\nfrom public.users\nwhere telegram_id = $1\nlimit 1;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ $json.telegram_id }}"
+        }
+      },
+      "id": "7672deb2-4db7-42a6-b085-04e69d23ef37",
+      "name": "DB: Get Preferred Language by telegram_id",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        528
+      ],
+      "notesInFlow": true,
+      "notes": "Fallback lookup when UUID is not available.\nUses telegram_id (your unique key)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Find base context from whichever branch includes twilio_to\nconst base = items.find(i => i.json?.twilio_to)?.json ?? items[0]?.json ?? {};\n\n// Get lang from DB result if present\nlet lang = null;\nfor (const it of items) {\n  const j = it.json;\n  if (typeof j?.lang === 'string') { lang = j.lang; break; }\n  if (Array.isArray(j) && typeof j?.[0]?.lang === 'string') { lang = j[0].lang; break; }\n  if (j?.rows?.[0]?.lang) { lang = j.rows[0].lang; break; }\n}\n\nlang = String(lang || 'en').toLowerCase();\n\nconst msg = (lang === 'ms' || lang === 'bm' || lang.startsWith('ms-'))\n  ? 'Maaf, saya tak dapat proses mesej tu tadi. Boleh hantar sekali lagi?'\n  : \"Sorry — I didn’t catch that. Can you send it again?\";\n\nreturn [{\n  json: {\n    ...base,\n    preferred_lang: lang,\n    fallback_message: msg\n  }\n}];"
+      },
+      "id": "8448664a-9580-417c-85fa-9780fd7a2302",
+      "name": "Compose Localized Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "from": "+601125911400",
+        "to": "={{ ($node[\"Get conversation by execution_id\"].json.telegram_chat_id || '') }}",
+        "toWhatsapp": true,
+        "message": "={{ $json.fallback_message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        432
+      ],
+      "id": "10bed828-cb8d-4810-b2d9-e3cfda6482e2",
+      "name": "Send an SMS/MMS/WhatsApp message",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.metadata.execution_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1888,
+        432
+      ],
+      "id": "fe4e06eb-4ad1-4b86-a13a-b60539f5fbb3",
+      "name": "Get conversation by execution_id"
+    },
+    {
+      "parameters": {
+        "tableId": "system_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id || $json.execution_raw?.user_id || null }}"
+            },
+            {
+              "fieldId": "log_type",
+              "fieldValue": "error"
+            },
+            {
+              "fieldId": "component",
+              "fieldValue": "=error_handler.twilio_send"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{   'Twilio fallback send failed: ' +   (    $json.error?.message ||    $json.errorMessage ||    $json.error?.code ||    'unknown error'  )}}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ {  source_workflow: $json.sourceWorkflowName || $json.workflow?.name,  source_workflow_id: $json.workflow?.id,  execution_id: $json.executionId || $json.execution?.id,  last_node_executed: $json.execution?.lastNodeExecuted,  to: $json.to || $json.twilio_to || null,  twilio_result: $json,} }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        528
+      ],
+      "id": "901b9e1c-9fc2-41e2-8ca7-0a44ab75ab84",
+      "name": "Create System Logs"
+    },
+    {
+      "parameters": {
+        "tableId": "system_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id || $json.execution_raw?.user_id || null }}"
+            },
+            {
+              "fieldId": "log_type",
+              "fieldValue": "error"
+            },
+            {
+              "fieldId": "component",
+              "fieldValue": "=error_handler.triggered"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{   'Main workflow failed; error handler triggered. ' +  'Last node: ' + ($json.execution?.lastNodeExecuted || 'unknown')}}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ {  source_workflow_id: $json.workflow?.id,  source_workflow_name: $json.workflow?.name,  execution_id: $json.execution?.id,  execution_url: $json.execution?.url,  last_node_executed: $json.execution?.lastNodeExecuted,  error_message: $json.execution?.error?.message,  error_stack: $json.execution?.error?.stack,} }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2112,
+        432
+      ],
+      "id": "863f11da-e519-4db4-80c4-ca3cbdb5148f",
+      "name": "START log"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "system_logs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('START log').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Get conversation by execution_id').item.json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        144
+      ],
+      "id": "111e41f6-2857-46de-a152-a7ab918fe59d",
+      "name": "Update System Logs"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "system_logs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('START log').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Get conversation by execution_id').item.json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        720
+      ],
+      "id": "30e36041-89cd-41ee-837f-b918954f4948",
+      "name": "Update System Logs1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "conversations",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get conversation by execution_id').item.json.user_id }}"
+            },
+            {
+              "keyName": "message_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get conversation by execution_id').item.json.message_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "assistant_response",
+              "fieldValue": "={{ $json.body }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        336
+      ],
+      "id": "9143d2a9-c23d-4dbb-91dc-7bbf36f257f2",
+      "name": "Update Conversation"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Meta": {
+      "main": [
+        [
+          {
+            "node": "IF Loop Guard (stop if source is Error Handler)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Loop Guard (stop if source is Error Handler)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "START log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Identifiers": {
+      "main": [
+        [
+          {
+            "node": "IF Has WhatsApp Recipient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has WhatsApp Recipient": {
+      "main": [
+        [
+          {
+            "node": "IF Has Valid user_id UUID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has Valid user_id UUID": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Preferred Language by UUID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DB: Get Preferred Language by telegram_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Preferred Language by UUID": {
+      "main": [
+        [
+          {
+            "node": "Compose Localized Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Preferred Language by telegram_id": {
+      "main": [
+        [
+          {
+            "node": "Compose Localized Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Localized Fallback": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get conversation by execution_id": {
+      "main": [
+        [
+          {
+            "node": "Extract Identifiers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Update System Logs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create System Logs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update System Logs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "START log": {
+      "main": [
+        [
+          {
+            "node": "Get conversation by execution_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

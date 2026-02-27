@@ -1,0 +1,274 @@
+[
+  {
+    "id": "6ld4eBs6hZm4iHRl",
+    "name": "ARA | Core | Main Inbound Handler | v2.7",
+    "active": 0,
+    "createdAt": "2025-12-14 05:28:39.106",
+    "updatedAt": "2026-02-03 07:38:06.862",
+    "filename": "workflows/6ld4eBs6hZm4iHRl__ara-core-main-inbound-handler-v2-7.json"
+  },
+  {
+    "id": "PdYrZTSFM82IbqlX",
+    "name": "ARA | Check-in | Segment C | v2.0",
+    "active": 1,
+    "createdAt": "2025-12-14 05:29:10.908",
+    "updatedAt": "2026-01-26 09:09:35.374",
+    "filename": "workflows/PdYrZTSFM82IbqlX__ara-check-in-segment-c-v2-0.json"
+  },
+  {
+    "id": "A57YNdWq1cnrPvlf",
+    "name": "Reminders 1 min WhatsApp - Upgrade 1.1 (fine tune)",
+    "active": 0,
+    "createdAt": "2025-12-14 05:29:30.884",
+    "updatedAt": "2025-12-17 09:24:22.415",
+    "filename": "workflows/A57YNdWq1cnrPvlf__reminders-1-min-whatsapp-upgrade-1-1-fine-tune.json"
+  },
+  {
+    "id": "MRv2ArqZFOrreZz2",
+    "name": "Daily Checks-in WhatsApp",
+    "active": 0,
+    "createdAt": "2025-12-14 05:29:50.533",
+    "updatedAt": "2025-12-14 05:29:50.533",
+    "filename": "workflows/MRv2ArqZFOrreZz2__daily-checks-in-whatsapp.json"
+  },
+  {
+    "id": "rQbED52z0q6s4mt4",
+    "name": "$>>Admin Memory Management",
+    "active": 0,
+    "createdAt": "2025-12-14 05:30:18.492",
+    "updatedAt": "2025-12-14 05:30:18.492",
+    "filename": "workflows/rQbED52z0q6s4mt4__admin-memory-management.json"
+  },
+  {
+    "id": "tcKRkxvGQLyy5fKI",
+    "name": ">>Update User - Pro",
+    "active": 0,
+    "createdAt": "2025-12-14 05:30:33.167",
+    "updatedAt": "2025-12-14 05:30:33.167",
+    "filename": "workflows/tcKRkxvGQLyy5fKI__update-user-pro.json"
+  },
+  {
+    "id": "JJd9vcviYfYxTIxq",
+    "name": ">>Update User - Smart",
+    "active": 0,
+    "createdAt": "2025-12-14 05:30:44.382",
+    "updatedAt": "2025-12-14 05:30:44.382",
+    "filename": "workflows/JJd9vcviYfYxTIxq__update-user-smart.json"
+  },
+  {
+    "id": "rtJMFmn2DKhoxlbn",
+    "name": "$>>ARA 1 Pilot WhatsApp - Upgrade 2.7 - tweaks (preferred name & language + onboarding mirroring) SANDBOX TEST",
+    "active": 0,
+    "createdAt": "2025-12-15 07:37:30.426",
+    "updatedAt": "2025-12-17 17:01:37.386",
+    "filename": "workflows/rtJMFmn2DKhoxlbn__ara-1-pilot-whatsapp-upgrade-2-7-tweaks-preferred-name-language-onboarding-mirroring-sandbox-test.json"
+  },
+  {
+    "id": "GIXR46uTPiGRxf3d",
+    "name": "ARA | Reminder | 1-minute cron | v2.0",
+    "active": 1,
+    "createdAt": "2025-12-17 09:54:18.444",
+    "updatedAt": "2026-01-11 00:04:42.170",
+    "filename": "workflows/GIXR46uTPiGRxf3d__ara-reminder-1-minute-cron-v2-0.json"
+  },
+  {
+    "id": "sdu3xBADJJYb80We",
+    "name": "ARA | Check-in | Segment B | v1.0",
+    "active": 0,
+    "createdAt": "2025-12-19 07:41:31.050",
+    "updatedAt": "2026-01-25 14:34:40.913",
+    "filename": "workflows/sdu3xBADJJYb80We__ara-check-in-segment-b-v1-0.json"
+  },
+  {
+    "id": "eTQcqds6hm3jVm4L",
+    "name": "ARA Seg A Power Tips v1",
+    "active": 0,
+    "createdAt": "2025-12-20 00:30:14.936",
+    "updatedAt": "2025-12-22 10:06:56.410",
+    "filename": "workflows/eTQcqds6hm3jVm4L__ara-seg-a-power-tips-v1.json"
+  },
+  {
+    "id": "tgwBxp8O2uhjJXOD",
+    "name": "ARA Seg A Power Tips v2",
+    "active": 0,
+    "createdAt": "2025-12-22 10:39:12.820",
+    "updatedAt": "2025-12-23 02:58:07.681",
+    "filename": "workflows/tgwBxp8O2uhjJXOD__ara-seg-a-power-tips-v2.json"
+  },
+  {
+    "id": "ouZHGQRW3f1YVTag",
+    "name": "ARA Seg A Power Tips v3",
+    "active": 0,
+    "createdAt": "2025-12-23 02:58:22.103",
+    "updatedAt": "2025-12-25 20:56:27.064",
+    "filename": "workflows/ouZHGQRW3f1YVTag__ara-seg-a-power-tips-v3.json"
+  },
+  {
+    "id": "mRY9BIAdrXO202A7",
+    "name": "ARA | Check-in | Segment A | v4.0",
+    "active": 0,
+    "createdAt": "2025-12-25 17:32:55.277",
+    "updatedAt": "2026-01-25 14:34:24.516",
+    "filename": "workflows/mRY9BIAdrXO202A7__ara-check-in-segment-a-v4-0.json"
+  },
+  {
+    "id": "sGtjyYgma5AN7wGJ",
+    "name": "$>>ARA 1 Pilot WhatsApp - Upgrade 2.7 - tweaks (preferred name & language + onboarding mirroring) copy 3",
+    "active": 0,
+    "createdAt": "2026-01-08 00:48:48.045",
+    "updatedAt": "2026-01-24 19:56:59.744",
+    "filename": "workflows/sGtjyYgma5AN7wGJ__ara-1-pilot-whatsapp-upgrade-2-7-tweaks-preferred-name-language-onboarding-mirroring-copy-3.json"
+  },
+  {
+    "id": "YBF1saWGoiTXwtiz",
+    "name": "ARA | Window Keeper | Engagement | v1.0",
+    "active": 0,
+    "createdAt": "2026-01-10 20:28:00.498",
+    "updatedAt": "2026-01-25 14:34:05.410",
+    "filename": "workflows/YBF1saWGoiTXwtiz__ara-window-keeper-engagement-v1-0.json"
+  },
+  {
+    "id": "OnG2lwbnIjCv3uOk",
+    "name": "ARA | ALE | Twilio Delivery Status (DSO) | v1.0",
+    "active": 0,
+    "createdAt": "2026-01-11 06:59:41.027",
+    "updatedAt": "2026-01-25 14:33:54.201",
+    "filename": "workflows/OnG2lwbnIjCv3uOk__ara-ale-twilio-delivery-status-dso-v1-0.json"
+  },
+  {
+    "id": "e4XZ7VRuyLo6wKDR",
+    "name": "Content Mate v1.9 (Ara) (AI Avatar | X Videos)",
+    "active": 0,
+    "createdAt": "2026-01-14 11:42:21.207",
+    "updatedAt": "2026-01-21 15:56:38.343",
+    "filename": "workflows/e4XZ7VRuyLo6wKDR__content-mate-v1-9-ara-ai-avatar-x-videos.json"
+  },
+  {
+    "id": "8ED0G9k6a0qVJ10H",
+    "name": "Content Mate v1.8 (ARA) (AI Avatar | X Videos)",
+    "active": 0,
+    "createdAt": "2026-01-18 15:38:27.057",
+    "updatedAt": "2026-01-18 16:10:47.130",
+    "filename": "workflows/8ED0G9k6a0qVJ10H__content-mate-v1-8-ara-ai-avatar-x-videos.json"
+  },
+  {
+    "id": "XkK2eCmu1VvWusAX",
+    "name": "Content Mate v2.0 (ARA) (X Videos)",
+    "active": 0,
+    "createdAt": "2026-01-19 07:41:04.661",
+    "updatedAt": "2026-01-19 09:06:24.742",
+    "filename": "workflows/XkK2eCmu1VvWusAX__content-mate-v2-0-ara-x-videos.json"
+  },
+  {
+    "id": "MXsO0SqwKPBpqwhQ",
+    "name": "ARA Ai Avatar v1.9",
+    "active": 0,
+    "createdAt": "2026-01-20 17:04:06.286",
+    "updatedAt": "2026-02-10 06:29:57.474",
+    "filename": "workflows/MXsO0SqwKPBpqwhQ__ara-ai-avatar-v1-9.json"
+  },
+  {
+    "id": "Ali2BsjoV0uWm8tn",
+    "name": "Content Mate v1.6 (Shared) (AI Avatar | X Videos)",
+    "active": 0,
+    "createdAt": "2026-01-21 14:32:34.940",
+    "updatedAt": "2026-01-21 14:32:34.940",
+    "filename": "workflows/Ali2BsjoV0uWm8tn__content-mate-v1-6-shared-ai-avatar-x-videos.json"
+  },
+  {
+    "id": "su7LjR9LUxNKfEdI",
+    "name": "🔧 ARA Diagnostic Test (Safe Mode)",
+    "active": 0,
+    "createdAt": "2026-01-23 01:46:12.715",
+    "updatedAt": "2026-01-23 01:46:12.715",
+    "filename": "workflows/su7LjR9LUxNKfEdI__ara-diagnostic-test-safe-mode.json"
+  },
+  {
+    "id": "Yo3agPp5ClhqdpNi",
+    "name": "ARA | Core | Main Inbound Handler | v2.8",
+    "active": 0,
+    "createdAt": "2026-01-26 06:58:02.646",
+    "updatedAt": "2026-01-27 08:37:27.050",
+    "filename": "workflows/Yo3agPp5ClhqdpNi__ara-core-main-inbound-handler-v2-8.json"
+  },
+  {
+    "id": "kd7AjhYZ2bpASlyn",
+    "name": "ARA | Core | Main Inbound Handler | v2.8.1",
+    "active": 0,
+    "createdAt": "2026-01-27 08:34:15.778",
+    "updatedAt": "2026-01-28 08:37:05.619",
+    "filename": "workflows/kd7AjhYZ2bpASlyn__ara-core-main-inbound-handler-v2-8-1.json"
+  },
+  {
+    "id": "CqemcRqBrz8xs6pM",
+    "name": "ARA | Core | Main Inbound Handler | v2.8.2",
+    "active": 0,
+    "createdAt": "2026-01-28 08:37:24.360",
+    "updatedAt": "2026-02-02 05:27:12.500",
+    "filename": "workflows/CqemcRqBrz8xs6pM__ara-core-main-inbound-handler-v2-8-2.json"
+  },
+  {
+    "id": "WG554chVjFXlViWS",
+    "name": "ARA | Core | Error Handler | v1.1",
+    "active": 0,
+    "createdAt": "2026-02-01 08:20:50.752",
+    "updatedAt": "2026-02-03 08:10:15.815",
+    "filename": "workflows/WG554chVjFXlViWS__ara-core-error-handler-v1-1.json"
+  },
+  {
+    "id": "ev6gM78yJ7nQbJs2",
+    "name": "ARA | Core | Main Inbound Handler | v2.8.3",
+    "active": 0,
+    "createdAt": "2026-02-02 05:27:26.046",
+    "updatedAt": "2026-02-02 13:25:42.018",
+    "filename": "workflows/ev6gM78yJ7nQbJs2__ara-core-main-inbound-handler-v2-8-3.json"
+  },
+  {
+    "id": "w0WZHMOPgpT6Ey6x",
+    "name": "ARA | Core | Main Inbound Handler | v2.8.4",
+    "active": 1,
+    "createdAt": "2026-02-02 13:25:58.315",
+    "updatedAt": "2026-02-23 18:02:50.885",
+    "filename": "workflows/w0WZHMOPgpT6Ey6x__ara-core-main-inbound-handler-v2-8-4.json"
+  },
+  {
+    "id": "p8VLL87MqgRj53qE",
+    "name": "Broadcast - Feature Update",
+    "active": 0,
+    "createdAt": "2026-02-03 11:50:27.113",
+    "updatedAt": "2026-02-05 03:18:20.135",
+    "filename": "workflows/p8VLL87MqgRj53qE__broadcast-feature-update.json"
+  },
+  {
+    "id": "uPkkiwh4qrlmhwA8",
+    "name": "ARA Ai Avatar v1.9.1 - C. Nora",
+    "active": 0,
+    "createdAt": "2026-02-10 12:11:14.082",
+    "updatedAt": "2026-02-11 07:15:53.266",
+    "filename": "workflows/uPkkiwh4qrlmhwA8__ara-ai-avatar-v1-9-1-c-nora.json"
+  },
+  {
+    "id": "4PQwr5AHdHwXIDQN",
+    "name": "ARA Ai Avatar v1.9.1 - Coach Joe",
+    "active": 0,
+    "createdAt": "2026-02-10 17:05:53.206",
+    "updatedAt": "2026-02-11 05:03:06.571",
+    "filename": "workflows/4PQwr5AHdHwXIDQN__ara-ai-avatar-v1-9-1-coach-joe.json"
+  },
+  {
+    "id": "v7fKHDYqcsMU1oP7",
+    "name": "ARA Ai Avatar v1.9.2 - Coach Joe",
+    "active": 0,
+    "createdAt": "2026-02-11 05:14:24.622",
+    "updatedAt": "2026-02-16 11:06:48.896",
+    "filename": "workflows/v7fKHDYqcsMU1oP7__ara-ai-avatar-v1-9-2-coach-joe.json"
+  },
+  {
+    "id": "AcPXPno0eaeHu1U1",
+    "name": "ARA Ai Avatar v1.9.3 - Coach Joe",
+    "active": 0,
+    "createdAt": "2026-02-11 19:30:37.762",
+    "updatedAt": "2026-02-12 18:56:52.407",
+    "filename": "workflows/AcPXPno0eaeHu1U1__ara-ai-avatar-v1-9-3-coach-joe.json"
+  }
+]

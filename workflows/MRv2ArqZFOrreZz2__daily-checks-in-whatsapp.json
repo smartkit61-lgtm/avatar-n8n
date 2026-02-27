@@ -1,0 +1,346 @@
+{
+  "id": "MRv2ArqZFOrreZz2",
+  "name": "Daily Checks-in WhatsApp",
+  "active": 0,
+  "createdAt": "2025-12-14 05:29:50.533",
+  "updatedAt": "2025-12-14 05:29:50.533",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "users",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_active",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1376,
+        368
+      ],
+      "id": "1132209d-7421-490b-a431-212254656997",
+      "name": "Get Active Users"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter users who haven't chatted between 24-720 hours\nconst users = $input.all();\nconst eligibleUsers = [];\n\nfor (const user of users) {\n  const userData = user.json;\n  const lastInteraction = userData.last_interaction;\n  \n  if (!lastInteraction) {\n    continue; // Skip users who never interacted\n  }\n  \n  const hoursSinceInteraction = (Date.now() - new Date(lastInteraction).getTime()) / (1000 * 60 * 60);\n  \n  // Check if inactive between 24-720 hours (1-30 days)\n  if (hoursSinceInteraction >= 24 && hoursSinceInteraction <= 144) {\n    eligibleUsers.push({\n      ...userData,\n      hours_inactive: Math.round(hoursSinceInteraction)\n    });\n  }\n}\n\nreturn eligibleUsers;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1152,
+        368
+      ],
+      "id": "b703c6ca-91d7-43ca-8afe-cc6d968dc21f",
+      "name": "Filter Inactive Users"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -928,
+        368
+      ],
+      "id": "d9832dd9-7b9f-4c34-b276-3d54dca51450",
+      "name": "Process Each Check-in"
+    },
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Filter Inactive Users').first().json.id }}"
+            },
+            {
+              "fieldId": "telegram_chat_id",
+              "fieldValue": "={{ $json.result.chat.id }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "proactive_checkin"
+            },
+            {
+              "fieldId": "assistant_response",
+              "fieldValue": "={{ $json.result.text }}"
+            },
+            {
+              "fieldId": "session_id",
+              "fieldValue": "checkin_{{ Date.now() }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "313"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        720,
+        368
+      ],
+      "id": "d823e4c2-e293-4418-91dc-e03354705a46",
+      "name": "Log Check-in"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "options": {
+          "systemMessage": "You are an AI assistant responsible for sending friendly, human-like proactive check-in messages to users via Telegram. You MUST respond **only** with a single valid JSON object (no explanations, no code fences, no extra keys). The JSON must follow this exact format:\n\n{\n  \"telegram_id\": \"<telegram_id>\",\n  \"message\": \"<the greeting + tip message>\"\n}\n\nYou will receive an input JSON that includes the following fields:\n- id: user database ID\n- telegram_id: Telegram chat ID (string or number)\n- first_name: user’s first name, or null\n- preferred_language: “ms” or “en” (if missing or invalid, default to “en”)\n- hours_inactive: number of hours since last interaction\n- proactive_count: integer count of previous check-in messages with message_type == \"proactive_checkin\"\n- conversations: array of prior conversation records; each record has at least message_type, assistant_response, created_at\n\n### Logic:\n1. Determine the number of prior proactive check-ins: use the field `proactive_count`. If missing, compute from `conversations` array by counting entries where message_type == \"proactive_checkin\".\n2. Compute the next tip number using: `next_tip = ((proactive_count) % 10) + 1`. This means after Tip 10 you go back to Tip 1.\n3. Select the corresponding tip text from the list below based on next_tip.\n4. Use the user’s `preferred_language`:\n   - If “ms”, craft the message in Malay.\n   - Otherwise (including if missing) use English.\n5. Greeting style:\n   - Use user’s `first_name` if available; otherwise use “there”.\n   - Keep the overall message to **one paragraph**, maximum **2 sentences**, and ≤ 180 characters.\n   - Include a friendly greeting, optionally reference inactivity (hours_inactive) in a natural way.\n   - Include at most 1-2 emojis.\n   - Append the tip text naturally at the end of the message.\n6. Tips list:\n   Tip 1 – Personalize Your Profile: Update your preferences for a tailored experience.\n   Tip 2 – Set Daily Goals: Add a few simple tasks today and track them with ARA.\n   Tip 3 – Use Reminders Often: Set reminders for meetings or personal tasks to stay on track.\n   Tip 4 – Ask Questions Freely: Ask anything to make ARA more helpful and personalized.\n   Tip 5 – Explore ARA’s Knowledge: Ask ARA questions on topics you want to learn about today.\n   Tip 6 – Keep Notes With ARA: Jot down ideas or reminders to keep everything organized.\n   Tip 7 – Provide Feedback: Tell ARA what works or doesn’t so it can better assist you.\n   Tip 8 – Stay Consistent: Interact daily, even briefly, for more helpful check-ins.\n   Tip 9 – Experiment With Conversations: Try different ways of asking questions to discover new insights.\n   Tip 10 – Leverage Context Memory: Use ARA’s memory to build continuity and get more relevant tips.\n\n### Example outputs:\n{\n  \"telegram_id\": \"123456789\",\n  \"message\": \"Hey Joe! It’s been a little while 😄 How’s your day going? Tip: Personalize your profile for a tailored experience.\"\n}\n\n{\n  \"telegram_id\": \"987654321\",\n  \"message\": \"Hai Aisyah! Lama tak jumpa 😄 Macam mana hari anda? Tip: Terokai pengetahuan ARA hari ini untuk belajar sesuatu baru.\"\n}\n\n### IMPORTANT:\n- Only the two keys `\"telegram_id\"` and `\"message\"` may appear.\n- Do not include any markdown, bullet lists, or additional commentary.\n- If you cannot determine a personalized tip (e.g., missing data), still output the JSON with the message: `\"Hi! Just checking in — hope you're well. 😊\"` (or the Malay equivalent if preferred_language == “ms”) and the telegram_id.\n\nYou may now generate the JSON for the user.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b256b3c7-15fe-4f20-8b1c-0051f0f66166",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        224
+      ],
+      "id": "5ad8d400-b430-4527-9b15-00dab551e5a6",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI Agent output and ensure proper structure\nconst input = $input.first().json;\n\n// Handle different possible output formats\nlet output;\n\n// If the AI returned a string, try to parse it\nif (typeof input.output === 'string') {\n  try {\n    // Remove any markdown code blocks if present\n    let cleaned = input.output\n      .replace(/```json\\s*/g, '')\n      .replace(/```\\s*/g, '')\n      .trim();\n    \n    output = JSON.parse(cleaned);\n  } catch (e) {\n    console.error('Failed to parse AI output:', e);\n    // Fallback: extract telegram_id and create a default message\n    const userData = $('Process Each Check-in').first().json;\n    output = {\n      telegram_id: userData.telegram_id,\n      message: `Hi ${userData.first_name || 'there'}! Just checking in to see how you're doing today. 😊 Remember to set your daily goals with ARA!`\n    };\n  }\n} else if (input.output && typeof input.output === 'object') {\n  output = input.output;\n} else {\n  // Fallback with user data\n  const userData = $('Process Each Check-in').first().json;\n  output = {\n    telegram_id: userData.telegram_id,\n    message: `Hi ${userData.first_name || 'there'}! Hope you're having a great day! 🌟 Quick tip: Use reminders to stay on track with your tasks.`\n  };\n}\n\n// Ensure we have the required fields\nif (!output.telegram_id || !output.message) {\n  const userData = $('Process Each Check-in').first().json;\n  output.telegram_id = output.telegram_id || userData.telegram_id;\n  output.message = output.message || 'Hi! Just checking in to see how you\\'re doing today. 😊';\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        160
+      ],
+      "id": "6c169e8f-1e65-4484-9aa9-6db28022585f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 09 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        368
+      ],
+      "id": "651c6c04-d578-480e-9ab7-b019688fe1f3",
+      "name": "Daily Check-in (9am)"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversations",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        160
+      ],
+      "id": "36513691-1c42-452a-a7de-81347af10a58",
+      "name": "Get many rows1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: user object from previous node\nconst user = $json;\n\n// Pull conversation rows from the Supabase node\nconst convOutput = $items(\"Get many rows1\", 0, 0).json;\n\nlet convs = [];\nif (convOutput && Array.isArray(convOutput.response)) {\n  convs = convOutput.response.filter(r => r.message_type === \"proactive_checkin\");\n}\n\nuser.conversations = convs;\nuser.proactive_count = convs.length;\n\n// Return as single item\nreturn [\n  {\n    json: user\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        80
+      ],
+      "id": "43474834-c5d2-46e0-86df-e9ee34c361c1",
+      "name": "Merge Conversations for AI"
+    },
+    {
+      "parameters": {
+        "from": "+601125911400",
+        "to": "={{ $json.telegram_id }}",
+        "toWhatsapp": true,
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        496,
+        192
+      ],
+      "id": "20c36b2f-8359-48ad-a9e8-e9bd47728540",
+      "name": "Send an SMS/MMS/WhatsApp message"
+    }
+  ],
+  "connections": {
+    "Get Active Users": {
+      "main": [
+        [
+          {
+            "node": "Filter Inactive Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Inactive Users": {
+      "main": [
+        [
+          {
+            "node": "Process Each Check-in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Check-in": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get many rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Check-in": {
+      "main": [
+        [
+          {
+            "node": "Process Each Check-in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Check-in (9am)": {
+      "main": [
+        [
+          {
+            "node": "Get Active Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows1": {
+      "main": [
+        [
+          {
+            "node": "Merge Conversations for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Conversations for AI": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Log Check-in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
